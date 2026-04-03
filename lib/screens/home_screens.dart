@@ -1,14 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../widgets/navbar.dart';
-import '../widgets/translation_card.dart';
 import '../widgets/dictionary_display.dart';
-import '../widgets/thesaurus_display.dart';
-import '../providers/translation_provider.dart';
 import '../providers/dictionary_provider.dart';
-import '../providers/thesaurus_provider.dart';
-
-// 1. IMPORT YOUR NEW SCREEN HERE
 import 'translate_screen.dart'; 
 
 class HomeScreen extends StatefulWidget {
@@ -19,179 +13,165 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String _activeBottomTab = 'dictionary';
-  
-  // Track Top Navigation active tab
   String _currentNavTab = 'home';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SingleChildScrollView(
+      body: Column(
+        children: [
+          // Top Navbar
+          Navbar(
+            currentTab: _currentNavTab,
+            onTabSelected: (selectedTab) {
+              setState(() {
+                _currentNavTab = selectedTab;
+              });
+            },
+          ),
+          
+          // Main Body
+          Expanded(
+            child: _currentNavTab == 'home' 
+              ? _buildHomeContent() 
+              : _currentNavTab == 'translate'
+                ? const TranslateScreen()
+                : Center(child: Text("$_currentNavTab page coming soon!")),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHomeContent() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(left: 10, right: 10, top: 10),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF2962FF), // Deep blue top
+            Color(0xFF7A9CFF), // Mid blue
+            Color(0xFFD6E0FF), // Light blue bottom
+          ],
+        ),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(40),
+          topRight: Radius.circular(40),
+        ),
+      ),
+      child: SingleChildScrollView(
         child: Column(
           children: [
-            // Top Navbar
-            Navbar(
-              currentTab: _currentNavTab,
-              onTabSelected: (selectedTab) {
-                setState(() {
-                  _currentNavTab = selectedTab; // This triggers the switch!
-                });
-              },
+            const SizedBox(height: 80),
+            // Hero Title
+            const Text(
+              "The World in Every Word",
+              style: TextStyle(
+                fontSize: 42,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
             ),
+            const SizedBox(height: 50),
             
-            // Render content based on which tab is clicked
-            if (_currentNavTab == 'home') ...[
-              // --- HOME VIEW ---
-              Stack(
-                alignment: Alignment.topCenter,
+            // Search Bar
+            Container(
+              width: 700,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
                 children: [
-                  Container(
-                    height: 280,
-                    width: double.infinity,
-                    margin: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2962FF),
-                      borderRadius: BorderRadius.circular(35),
-                    ),
-                    child: const Center(
-                      child: Padding(
-                        padding: EdgeInsets.only(bottom: 60),
-                        child: Text(
-                          "Translate and explore the world's languages.",
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 32,
-                              fontWeight: FontWeight.w600),
-                        ),
+                  const Padding(
+                    padding: EdgeInsets.only(left: 20, right: 10),
+                    child: Icon(Icons.search, color: Colors.grey),
+                  ),
+                  const Expanded(
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: "Search English",
+                        hintStyle: TextStyle(color: Colors.grey),
+                        border: InputBorder.none,
                       ),
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.only(top: 200),
-                    child: TranslationCard(),
+                    padding: const EdgeInsets.all(8.0),
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF5B85FF),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                      ),
+                      child: const Text("Search", style: TextStyle(fontSize: 16)),
+                    ),
                   ),
                 ],
               ),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 100),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        _bottomBtn(
-                          Icons.crop_landscape,
-                          "Dictionary",
-                          isOrange: _activeBottomTab == 'dictionary', 
-                          onTap: () {
-                            setState(() {
-                              _activeBottomTab = 'dictionary';
-                            });
-                          },
-                        ),
-                        const SizedBox(width: 15),
-                        _bottomBtn(
-                          Icons.waves,
-                          "Thesaurus",
-                          isOrange: _activeBottomTab == 'thesaurus', 
-                          onTap: () {
-                            setState(() {
-                              _activeBottomTab = 'thesaurus';
-                            });
-                            final word = context.read<TranslationProvider>().resultText;
-                            if (word.isNotEmpty && word != "Hello") {
-                               context.read<ThesaurusProvider>().searchThesaurus(word);
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    
-                    if (_activeBottomTab == 'dictionary')
-                      Consumer<DictionaryProvider>(
-                        builder: (context, dictProvider, child) {
-                          if (dictProvider.result == null && !dictProvider.isLoading) {
-                            return const SizedBox.shrink();
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 20),
-                            child: dictProvider.isLoading
-                                ? const Center(child: CircularProgressIndicator())
-                                : DictionaryDisplayWidget(data: dictProvider.result!),
-                          );
-                        },
-                      )
-                    else 
-                      Consumer<ThesaurusProvider>(
-                        builder: (context, thesProvider, child) {
-                          if (thesProvider.result == null && !thesProvider.isLoading) {
-                            return const SizedBox.shrink();
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 20),
-                            child: thesProvider.isLoading
-                                ? const Center(child: CircularProgressIndicator(color: Colors.blue))
-                                : ThesaurusDisplayWidget(data: thesProvider.result!),
-                          );
-                        },
-                      ),
-                    
-                    const SizedBox(height: 60),
-                    Divider(color: Colors.grey[300]),
-                  ],
+            ),
+            const SizedBox(height: 25),
+            
+            // Popular Searches
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  "Popular search",
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
-              ),
-            ] 
+                const SizedBox(width: 15),
+                _searchTag("Grieving"),
+                _searchTag("Night"),
+                _searchTag("Special"),
+              ],
+            ),
             
-            // 2. SWITCH TO YOUR NEW SCREEN HERE
-            else if (_currentNavTab == 'translate') ...[
-              const TranslateScreen(), 
-            ]
+            const SizedBox(height: 60),
             
-            // Fallback for other tabs (like Dictionary or Thesaurus on the top nav)
-            else ...[
-              Padding(
-                padding: const EdgeInsets.only(top: 100),
-                child: Center(child: Text("$_currentNavTab page coming soon!")),
-              )
-            ]
+            // Word of the Day Card
+            Consumer<DictionaryProvider>(
+              builder: (context, dictProvider, child) {
+                // If you don't have data loaded yet, you might want to show a default/mocked "Lucullan" card here
+                // to exactly match the Figma until a search happens.
+                if (dictProvider.result == null && !dictProvider.isLoading) {
+                  return const DictionaryDisplayWidget(data: null); // Pass null to show default design
+                }
+                
+                if (dictProvider.isLoading) {
+                  return const CircularProgressIndicator(color: Colors.white);
+                }
+                
+                return DictionaryDisplayWidget(data: dictProvider.result);
+              },
+            ),
+            const SizedBox(height: 50),
           ],
         ),
       ),
     );
   }
 
-  // Helper widget for bottom buttons
-  Widget _bottomBtn(IconData icon, String label,
-      {bool isOrange = false, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(15),
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: isOrange ? const Color(0xFFF4B459) : Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          border: isOrange ? null : Border.all(color: Colors.grey[300]!),
-          boxShadow: [
-            if (isOrange)
-              BoxShadow(
-                  color: Colors.orange.withValues(alpha: 0.3), blurRadius: 8)
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: isOrange ? Colors.white : Colors.black),
-            const SizedBox(width: 8),
-            Text(label,
-                style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: isOrange ? Colors.white : Colors.black)),
-          ],
-        ),
+  Widget _searchTag(String text) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.2), // Transparent white
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(color: Colors.white, fontSize: 15),
       ),
     );
   }
