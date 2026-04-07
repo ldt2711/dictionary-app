@@ -11,19 +11,17 @@ class DictionaryResult {
     required this.grammarTips,
   });
 
-  // This is the "Mock" data for testing until your backend is ready
-  factory DictionaryResult.mock(String word) {
+  // ADD THIS: The logic to convert JSON into this class
+  factory DictionaryResult.fromJson(Map<String, dynamic> json) {
     return DictionaryResult(
-      word: word,
-      pronunciation: "/${word.toLowerCase()}/",
-      definitions: [
-        Definition(
-          partOfSpeech: "Noun",
-          meaning: "This is a sample definition for '$word' from your database.",
-          example: "Here is an example sentence using the word '$word'.",
-        )
-      ],
-      grammarTips: ["Sample grammar tip for this word."],
+      word: json['word'] ?? '',
+      pronunciation: json['pronunciation'] ?? '',
+      // This part handles the list of definitions
+      definitions: (json['definitions'] as List)
+          .map((d) => Definition.fromJson(d))
+          .toList(),
+      // This handles the list of strings
+      grammarTips: List<String>.from(json['grammarTips'] ?? []),
     );
   }
 }
@@ -38,4 +36,13 @@ class Definition {
     required this.meaning,
     required this.example,
   });
+
+  // ADD THIS: Logic for the nested definition objects
+  factory Definition.fromJson(Map<String, dynamic> json) {
+    return Definition(
+      partOfSpeech: json['partOfSpeech'] ?? '',
+      meaning: json['meaning'] ?? '',
+      example: json['example'] ?? '',
+    );
+  }
 }

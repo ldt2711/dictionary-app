@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../widgets/navbar.dart';
-import '../widgets/translation_card.dart';
-import '../widgets/dictionary_display.dart';
-import '../widgets/thesaurus_display.dart';
-import '../providers/translation_provider.dart';
+import '../widgets/dictionary_display.dart'; 
 import '../providers/dictionary_provider.dart';
-import '../providers/thesaurus_provider.dart';
+import 'translate_screen.dart'; 
+import 'dictionary_screen.dart'; 
+import 'thesaurus_screen.dart'; // <-- IMPORT ADDED HERE
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,155 +15,183 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // 1. Track which tab is active. Default is 'dictionary'
-  String _activeTab = 'dictionary';
+  String _currentNavTab = 'home';
+  final TextEditingController _homeSearchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _homeSearchController.dispose();
+    super.dispose();
+  }
+
+  void _performSearch(String word) {
+    if (word.trim().isNotEmpty) {
+      context.read<DictionaryProvider>().searchWord(word.trim());
+      setState(() {
+        _currentNavTab = 'dictionary';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SingleChildScrollView(
+      body: Column(
+        children: [
+          Navbar(
+            currentTab: _currentNavTab,
+            onTabSelected: (selectedTab) {
+              setState(() {
+                _currentNavTab = selectedTab;
+              });
+            },
+          ),
+          Expanded(
+            child: _currentNavTab == 'home' 
+              ? _buildHomeContent() 
+              : _currentNavTab == 'dictionary'
+                ? const DictionaryScreen()
+              : _currentNavTab == 'translate'
+                ? const TranslateScreen()
+              : _currentNavTab == 'thesaurus' // <-- ROUTING LOGIC ADDED HERE
+                ? const ThesaurusScreen()
+                : Center(child: Text("$_currentNavTab page coming soon!")),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHomeContent() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(left: 10, right: 10, top: 10),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF2962FF),
+            Color(0xFF7A9CFF),
+            Color(0xFFD6E0FF),
+          ],
+        ),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(40),
+          topRight: Radius.circular(40),
+        ),
+      ),
+      child: SingleChildScrollView(
         child: Column(
           children: [
-            Navbar(),
-            Stack(
-              alignment: Alignment.topCenter,
-              children: [
-                Container(
-                  height: 280,
-                  width: double.infinity,
-                  margin: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2962FF),
-                    borderRadius: BorderRadius.circular(35),
-                  ),
-                  child: const Center(
-                    child: Padding(
-                      padding: EdgeInsets.only(bottom: 60),
-                      child: Text(
-                        "Translate and explore the world's languages.",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 200),
-                  child: TranslationCard(),
-                ),
-              ],
+            const SizedBox(height: 80),
+            const Text(
+              "The World in Every Word",
+              style: TextStyle(
+                fontSize: 42,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
             ),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 100),
-              child: Column(
+            const SizedBox(height: 50),
+            
+            // Search Bar
+            Container(
+              width: 700,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      // 2. Dictionary Button
-                      _bottomBtn(
-                        Icons.crop_landscape,
-                        "Dictionary",
-                        // Button is orange only if activeTab is 'dictionary'
-                        isOrange: _activeTab == 'dictionary', 
-                        onTap: () {
-                          setState(() {
-                            _activeTab = 'dictionary';
-                          });
-                        },
-                      ),
-                      const SizedBox(width: 15),
-                      // 3. Thesaurus Button
-                      _bottomBtn(
-                        Icons.waves,
-                        "Thesaurus",
-                        // Button is orange only if activeTab is 'thesaurus'
-                        isOrange: _activeTab == 'thesaurus', 
-                        onTap: () {
-                          setState(() {
-                            _activeTab = 'thesaurus';
-                          });
-                          // Trigger search if result exists
-                          final word = context.read<TranslationProvider>().resultText;
-                          if (word.isNotEmpty && word != "Hello") {
-                             context.read<ThesaurusProvider>().searchThesaurus(word);
-                          }
-                        },
-                      ),
-                    ],
+                  const Padding(
+                    padding: EdgeInsets.only(left: 20, right: 10),
+                    child: Icon(Icons.search, color: Colors.grey),
                   ),
-                  const SizedBox(height: 20),
-                  
-                  // 4. Conditional Rendering: Show only the active section
-                  if (_activeTab == 'dictionary')
-                    Consumer<DictionaryProvider>(
-                      builder: (context, dictProvider, child) {
-                        if (dictProvider.result == null && !dictProvider.isLoading) {
-                          return const SizedBox.shrink();
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 20),
-                          child: dictProvider.isLoading
-                              ? const Center(child: CircularProgressIndicator())
-                              : DictionaryDisplayWidget(data: dictProvider.result!),
-                        );
-                      },
-                    )
-                  else // Show Thesaurus
-                    Consumer<ThesaurusProvider>(
-                      builder: (context, thesProvider, child) {
-                        if (thesProvider.result == null && !thesProvider.isLoading) {
-                          return const SizedBox.shrink();
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 20),
-                          child: thesProvider.isLoading
-                              ? const Center(child: CircularProgressIndicator(color: Colors.blue))
-                              : ThesaurusDisplayWidget(data: thesProvider.result!),
-                        );
-                      },
+                  Expanded(
+                    child: TextField(
+                      controller: _homeSearchController,
+                      onSubmitted: (value) => _performSearch(value),
+                      decoration: const InputDecoration(
+                        hintText: "Search English",
+                        hintStyle: TextStyle(color: Colors.grey),
+                        border: InputBorder.none,
+                      ),
                     ),
-                  
-                  const SizedBox(height: 60),
-                  Divider(color: Colors.grey[300]),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: ElevatedButton(
+                      onPressed: () => _performSearch(_homeSearchController.text),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF5B85FF),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                      ),
+                      child: const Text("Search", style: TextStyle(fontSize: 16)),
+                    ),
+                  ),
                 ],
               ),
             ),
+            const SizedBox(height: 25),
+            
+            // Popular Searches
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  "Popular search",
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                ),
+                const SizedBox(width: 15),
+                _searchTag("Grieving"),
+                _searchTag("Night"),
+                _searchTag("Special"),
+              ],
+            ),
+
+            // Word of the Day Card
+            const SizedBox(height: 60),
+            
+            Consumer<DictionaryProvider>(
+              builder: (context, dictProvider, child) {
+                return Center(
+                  child: DictionaryDisplayWidget(
+                    data: dictProvider.result, 
+                  ),
+                );
+              },
+            ),
+            
+            const SizedBox(height: 80), // Padding for the bottom
           ],
         ),
       ),
     );
   }
 
-  Widget _bottomBtn(IconData icon, String label,
-      {bool isOrange = false, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(15),
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+  Widget _searchTag(String text) {
+    return GestureDetector(
+      onTap: () {
+        _homeSearchController.text = text;
+        _performSearch(text);
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
         decoration: BoxDecoration(
-          color: isOrange ? const Color(0xFFF4B459) : Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          border: isOrange ? null : Border.all(color: Colors.grey[300]!),
-          boxShadow: [
-            if (isOrange)
-              BoxShadow(
-                  color: Colors.orange.withValues(alpha: 0.3), blurRadius: 8)
-          ],
+          color: Colors.white.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(20),
         ),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: isOrange ? Colors.white : Colors.black),
-            const SizedBox(width: 8),
-            Text(label,
-                style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: isOrange ? Colors.white : Colors.black)),
-          ],
+        child: Text(
+          text,
+          style: const TextStyle(color: Colors.white, fontSize: 15),
         ),
       ),
     );

@@ -11,7 +11,18 @@ class ThesaurusResult {
     required this.relatedPhrases,
   });
 
-  // Mock data for testing
+  // --- THE FIX: Add this logic to handle the JSON file ---
+  factory ThesaurusResult.fromJson(Map<String, dynamic> json) {
+    return ThesaurusResult(
+      word: json['word'] ?? '',
+      // List<String>.from ensures the dynamic JSON list becomes a clean String list
+      synonyms: List<String>.from(json['synonyms'] ?? []),
+      antonyms: List<String>.from(json['antonyms'] ?? []),
+      relatedPhrases: List<String>.from(json['relatedPhrases'] ?? []),
+    );
+  }
+
+  // Keeping your mock here is fine for testing!
   factory ThesaurusResult.mock(String word) {
     return ThesaurusResult(
       word: word,

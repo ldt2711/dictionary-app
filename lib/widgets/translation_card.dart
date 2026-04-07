@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // 1. Required for Clipboard
 import 'package:provider/provider.dart';
 import 'hover_builder.dart';
 import '../providers/translation_provider.dart';
@@ -14,6 +15,21 @@ class TranslationCard extends StatefulWidget {
 
 class _TranslationCardState extends State<TranslationCard> {
   final TextEditingController _inputController = TextEditingController();
+
+  // 2. Helper method to handle copying and feedback
+  void _copyToClipboard(BuildContext context, String text) {
+    if (text.isNotEmpty) {
+      Clipboard.setData(ClipboardData(text: text));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Copied to clipboard!"),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          width: 250,
+        ),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -47,19 +63,14 @@ class _TranslationCardState extends State<TranslationCard> {
                 lang: "Tiếng Việt",
                 controller: _inputController,
                 onSubmitted: (val) async {
-                  // --- UPDATED LOGIC ---
-                  // 1. Translate the text
                   await translationData.handleTranslation(val);
-                  
-                  // 2. ONLY search the Dictionary automatically
                   if (mounted) {
                     final result = translationData.resultText;
                     context.read<DictionaryProvider>().searchWord(result);
-                    
-                    // Thesaurus auto-trigger REMOVED from here 
-                    // to prevent it from showing up until the button is clicked.
                   }
                 },
+                // Pass the copy logic for input text
+                onCopy: () => _copyToClipboard(context, _inputController.text),
                 hasMic: true,
               ),
               
@@ -71,8 +82,9 @@ class _TranslationCardState extends State<TranslationCard> {
                 lang: "English",
                 result: translationData.resultText,
                 isLoading: translationData.isLoading,
+                // Pass the copy logic for result text
+                onCopy: () => _copyToClipboard(context, translationData.resultText),
                 onSeeMore: () {
-                  // Manual trigger: If they click "See Details", show both.
                   final result = translationData.resultText;
                   dictProvider.searchWord(result);
                   thesaurusProvider.searchThesaurus(result);
@@ -94,6 +106,7 @@ class _TranslationCardState extends State<TranslationCard> {
     required String lang,
     required TextEditingController controller,
     required Function(String) onSubmitted,
+    required VoidCallback onCopy, // Added
     bool hasMic = false,
   }) {
     return Expanded(
@@ -115,7 +128,7 @@ class _TranslationCardState extends State<TranslationCard> {
               ),
             ),
             const Spacer(),
-            _actionIcons(hasMic),
+            _actionIcons(hasMic, onCopy), // Pass callback
           ],
         ),
       ),
@@ -127,6 +140,7 @@ class _TranslationCardState extends State<TranslationCard> {
     required String lang,
     required String result,
     required bool isLoading,
+    required VoidCallback onCopy, // Added
     required VoidCallback onSeeMore,
   }) {
     return Expanded(
@@ -144,7 +158,7 @@ class _TranslationCardState extends State<TranslationCard> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _actionIcons(false),
+                _actionIcons(false, onCopy), // Pass callback
                 if (result.isNotEmpty && result != "Hello") 
                   TextButton(
                     onPressed: onSeeMore,
@@ -172,24 +186,27 @@ class _TranslationCardState extends State<TranslationCard> {
     );
   }
 
-  Widget _actionIcons(bool hasMic) {
+  Widget _actionIcons(bool hasMic, VoidCallback onCopy) {
     return Row(
       children: [
         if (hasMic) _actionIcon(Icons.mic_none),
         if (hasMic) const SizedBox(width: 15),
-        _actionIcon(Icons.copy),
+        _actionIcon(Icons.copy, onTap: onCopy), // Triggers copy
         const SizedBox(width: 15),
         _actionIcon(Icons.volume_up_outlined),
       ],
     );
   }
 
-  Widget _actionIcon(IconData icon) {
+  Widget _actionIcon(IconData icon, {VoidCallback? onTap}) {
     return HoverBuilder(
-      builder: (isHovered) => Icon(
-        icon,
-        color: isHovered ? Colors.blue : Colors.grey[600],
-        size: 22,
+      builder: (isHovered) => GestureDetector(
+        onTap: onTap,
+        child: Icon(
+          icon,
+          color: isHovered ? Colors.blue : Colors.grey[600],
+          size: 22,
+        ),
       ),
     );
   }

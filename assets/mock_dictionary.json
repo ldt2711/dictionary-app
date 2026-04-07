@@ -1,0 +1,20 @@
+{
+  "word": "Hello",
+  "pronunciation": "/həˈloʊ/",
+  "definitions": [
+    {
+      "partOfSpeech": "Exclamation",
+      "meaning": "Used as a greeting.",
+      "example": "Hello, how are you?"
+    },
+    {
+      "partOfSpeech": "Noun",
+      "meaning": "An utterance of 'hello'.",
+      "example": "She was surprised by his loud hello."
+    }
+  ],
+  "grammarTips": [
+    "Used in both formal and informal settings.",
+    "Commonly followed by a person's name."
+  ]
+}
