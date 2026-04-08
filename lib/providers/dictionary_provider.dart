@@ -7,19 +7,43 @@ class DictionaryProvider with ChangeNotifier {
   
   DictionaryResult? _result;
   bool _isLoading = false;
+  
+  // Thêm danh sách lưu lịch sử tìm kiếm (có thể để sẵn vài từ test)
+  final List<String> _searchHistory = [];
 
-  // These allow the UI to "see" the data but not change it directly
   DictionaryResult? get result => _result;
   bool get isLoading => _isLoading;
+  List<String> get searchHistory => _searchHistory;
 
   Future<void> searchWord(String word) async {
     _isLoading = true;
-    notifyListeners(); // Show the loading spinner
+    notifyListeners();
 
-    // Call your service (which calls your local JSON)
+    // Thêm từ vào lịch sử khi bắt đầu tìm kiếm
+    addToHistory(word);
+
     _result = await _service.getWordData(word);
 
     _isLoading = false;
-    notifyListeners(); // Hide spinner and show the word
+    notifyListeners();
+  }
+
+  // Hàm thêm vào lịch sử
+  void addToHistory(String word) {
+    if (word.trim().isEmpty) return;
+    // Xóa nếu từ đã tồn tại để đẩy nó lên đầu danh sách
+    _searchHistory.remove(word);
+    _searchHistory.insert(0, word);
+    // Giới hạn lưu tối đa 10 từ gần nhất
+    if (_searchHistory.length > 10) {
+      _searchHistory.removeLast();
+    }
+    notifyListeners();
+  }
+
+  // Hàm xóa một từ khỏi lịch sử
+  void removeFromHistory(String word) {
+    _searchHistory.remove(word);
+    notifyListeners();
   }
 }

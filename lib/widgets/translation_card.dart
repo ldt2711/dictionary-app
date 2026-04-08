@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // 1. Required for Clipboard
+import 'package:flutter/services.dart'; 
 import 'package:provider/provider.dart';
 import 'hover_builder.dart';
 import '../providers/translation_provider.dart';
@@ -7,16 +7,19 @@ import '../providers/dictionary_provider.dart';
 import '../providers/thesaurus_provider.dart'; 
 
 class TranslationCard extends StatefulWidget {
-  const TranslationCard({super.key});
+  // 1. CHỈNH SỬA: Nhận controller từ TranslateScreen truyền vào
+  final TextEditingController inputController;
+  
+  const TranslationCard({super.key, required this.inputController});
 
   @override
   State<TranslationCard> createState() => _TranslationCardState();
 }
 
 class _TranslationCardState extends State<TranslationCard> {
-  final TextEditingController _inputController = TextEditingController();
+  // 2. XOÁ: Dòng "final TextEditingController _inputController..." đã xoá 
+  // vì bây giờ chúng ta dùng widget.inputController
 
-  // 2. Helper method to handle copying and feedback
   void _copyToClipboard(BuildContext context, String text) {
     if (text.isNotEmpty) {
       Clipboard.setData(ClipboardData(text: text));
@@ -33,7 +36,7 @@ class _TranslationCardState extends State<TranslationCard> {
 
   @override
   void dispose() {
-    _inputController.dispose();
+    // 3. XOÁ: _inputController.dispose() vì màn hình cha sẽ chịu trách nhiệm dispose
     super.dispose();
   }
 
@@ -55,28 +58,26 @@ class _TranslationCardState extends State<TranslationCard> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // ✅ LAYER 1: The Darker Background for the Left Pane
           Positioned(
             left: 0,
             top: 0,
             bottom: 0,
-            width: 500, // Exactly half of the card's 1000 width
+            width: 500, 
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.grey[100], // Makes the left side darker
+                color: Colors.grey[100], 
                 borderRadius: const BorderRadius.horizontal(left: Radius.circular(24)),
               ),
             ),
           ),
 
-          // ✅ LAYER 2: Your Content (Text inputs, results, and divider)
           Row(
             children: [
-              // LEFT PANE (From)
               _buildInputPane(
                 label: "From:",
                 lang: translationData.sourceLanguage, 
-                controller: _inputController,
+                // 4. CHỈNH SỬA: Dùng widget.inputController
+                controller: widget.inputController,
                 onSubmitted: (val) async {
                   await translationData.handleTranslation(val);
                   if (mounted) {
@@ -84,13 +85,13 @@ class _TranslationCardState extends State<TranslationCard> {
                     context.read<DictionaryProvider>().searchWord(result);
                   }
                 },
-                onCopy: () => _copyToClipboard(context, _inputController.text),
+                // 5. CHỈNH SỬA: Dùng widget.inputController.text
+                onCopy: () => _copyToClipboard(context, widget.inputController.text),
                 hasMic: true,
               ),
               
               VerticalDivider(width: 1, thickness: 1, color: Colors.grey[300]),
               
-              // RIGHT PANE (To)
               _buildResultPane(
                 label: "To:",
                 lang: translationData.targetLanguage, 
@@ -106,16 +107,17 @@ class _TranslationCardState extends State<TranslationCard> {
             ],
           ),
           
-          // ✅ LAYER 3: The Swap Button on top of everything
           _swapButton(onTap: () {
-            translationData.swapLanguages(_inputController);
+            // 6. CHỈNH SỬA: Truyền widget.inputController vào hàm swap
+            translationData.swapLanguages(widget.inputController);
           }),
         ],
       ),
     );
   }
 
-  // --- HELPER METHODS ---
+  // --- HELPER METHODS GIỮ NGUYÊN ---
+  // (Chỉ cần đảm bảo truyền đúng các biến từ build vào)
 
   Widget _buildInputPane({
     required String label,
@@ -140,7 +142,6 @@ class _TranslationCardState extends State<TranslationCard> {
               decoration: const InputDecoration(
                 hintText: "Nhập văn bản...",
                 border: InputBorder.none,
-                // ✅ Let the grey[100] background from Layer 1 show through
                 filled: true,
                 fillColor: Colors.transparent, 
                 hintStyle: TextStyle(color: Colors.grey),
