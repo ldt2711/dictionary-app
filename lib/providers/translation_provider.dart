@@ -1,20 +1,6 @@
 import 'package:flutter/material.dart';
+import '../models/translation_history.dart'; // <--- Now this works!
 import '../services/translation_service.dart';
-
-// Model đơn giản để lưu lịch sử dịch
-class TranslationHistory {
-  final String origin;
-  final String translated;
-  final String fromLang;
-  final String toLang;
-
-  TranslationHistory({
-    required this.origin,
-    required this.translated,
-    required this.fromLang,
-    required this.toLang,
-  });
-}
 
 class TranslationProvider with ChangeNotifier {
   final TranslationService _service = TranslationService();
@@ -23,27 +9,33 @@ class TranslationProvider with ChangeNotifier {
   bool _isLoading = false;
   String _sourceLanguage = "Tiếng Việt";
   String _targetLanguage = "English";
+  
+  String _currentSourceAudio = "";
+  String _currentTargetAudio = "";
 
   final List<TranslationHistory> _history = [];
 
+  // Getters
   String get resultText => _resultText;
   bool get isLoading => _isLoading;
   String get sourceLanguage => _sourceLanguage;
   String get targetLanguage => _targetLanguage;
+  String get currentSourceAudio => _currentSourceAudio;
+  String get currentTargetAudio => _currentTargetAudio;
   List<TranslationHistory> get history => _history;
 
-  // ===========================================================
-  // 1. PHẦN CẦN THÊM: Hàm để load dữ liệu từ lịch sử ngược lại UI
-  // ===========================================================
+  String _getLangCode(String name) {
+    return name == "Tiếng Việt" ? "vi" : "en";
+  }
+
   void loadHistoryItem(TranslationHistory item, TextEditingController controller) {
     _sourceLanguage = item.fromLang;
     _targetLanguage = item.toLang;
     _resultText = item.translated;
+    _currentSourceAudio = item.sourceAudio;
+    _currentTargetAudio = item.targetAudio;
     
-    // Cập nhật text hiển thị trên khung nhập liệu (Textfield)
     controller.text = item.origin;
-    
-    // Thông báo cho các widget (Card, Header...) cập nhật lại giao diện
     notifyListeners();
   }
 
@@ -53,8 +45,7 @@ class TranslationProvider with ChangeNotifier {
     _targetLanguage = temp;
 
     if (_resultText.isNotEmpty && !_resultText.startsWith("Error:")) {
-      String cleanText = _resultText.replaceAll("Translated: ", "");
-      controller.text = cleanText;
+      controller.text = _resultText;
       _resultText = ""; 
     }
     notifyListeners();
@@ -66,20 +57,27 @@ class TranslationProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final langCode = _targetLanguage == "English" ? "en" : "vi";
-      final result = await _service.translate(input, langCode);
+      final sCode = _getLangCode(_sourceLanguage);
+      final tCode = _getLangCode(_targetLanguage);
+
+      // This fix matches your rewritten TranslationService
+      final result = await _service.translate(input, sCode, tCode);
       
       if (result != null) {
         _resultText = result.translatedText;
+        _currentSourceAudio = result.sourceAudio;
+        _currentTargetAudio = result.targetAudio;
         
         _history.insert(0, TranslationHistory(
           origin: input,
           translated: _resultText,
           fromLang: _sourceLanguage,
           toLang: _targetLanguage,
+          sourceAudio: result.sourceAudio,
+          targetAudio: result.targetAudio,
         ));
       } else {
-        _resultText = "Error: Could not get translation from server.";
+        _resultText = "Error: Translation failed.";
       }
     } catch (e) {
       _resultText = "Error: $e";
@@ -87,10 +85,5 @@ class TranslationProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
-  }
-
-  void clearHistory() {
-    _history.clear();
-    notifyListeners();
   }
 }

@@ -1,20 +1,29 @@
 class TranslationResult {
   final String translatedText;
-  final String sourceLanguage;
-  final String targetLanguage;
+  final String sourceLang;
+  final String targetLang;
+  final String sourceAudio; // URL link to the source TTS
+  final String targetAudio; // URL link to the translated TTS
+  final String source;      // To know if it came from "database" or "api"
 
   TranslationResult({
     required this.translatedText,
-    required this.sourceLanguage,
-    required this.targetLanguage,
+    required this.sourceLang,
+    required this.targetLang,
+    required this.sourceAudio,
+    required this.targetAudio,
+    required this.source,
   });
 
-  // This "factory" takes a JSON map from the backend and creates the object
   factory TranslationResult.fromJson(Map<String, dynamic> json) {
     return TranslationResult(
+      // Match the keys exactly as they appear in your main.py jsonify()
       translatedText: json['translatedText'] ?? '',
-      sourceLanguage: json['source'] ?? 'Unknown',
-      targetLanguage: json['target'] ?? 'Unknown',
+      sourceLang: json['source_lang'] ?? 'en',
+      targetLang: json['target_lang'] ?? 'vi',
+      sourceAudio: json['source_audio'] ?? '',
+      targetAudio: json['target_audio'] ?? '',
+      source: json['source'] ?? 'api',
     );
   }
 }

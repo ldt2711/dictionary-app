@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../widgets/translation_card.dart';
 import '../providers/translation_provider.dart';
 
@@ -15,10 +16,29 @@ class _TranslateScreenState extends State<TranslateScreen> {
   // --- THÊM: Khai báo controller tại đây để dùng chung ---
   final TextEditingController _inputController = TextEditingController();
 
+  // 2. Initialize the AudioPlayer here
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  
+  // Replace this with your actual local IP or 'http://localhost:5000' for web
+  final String baseUrl = "http://127.0.0.1:5000";
+
   @override
   void dispose() {
     _inputController.dispose();
+    _audioPlayer.dispose(); // 3. Clean up the player
     super.dispose();
+  }
+
+// 4. Helper function to play the TTS stream
+  void _playTts(String path) async {
+    if (path.isNotEmpty) {
+      try {
+        // Prepend the base URL so Flutter knows to hit your Flask server
+        await _audioPlayer.play(UrlSource(baseUrl + path));
+      } catch (e) {
+        debugPrint("TTS Play Error: $e");
+      }
+    }
   }
 
   @override
@@ -43,8 +63,12 @@ class _TranslateScreenState extends State<TranslateScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                // --- TRUYỀN CONTROLLER VÀO CARD ---
-                TranslationCard(inputController: _inputController),
+
+                // 5. Pass the play function to the TranslationCard
+                TranslationCard(
+                  inputController: _inputController,
+                  onPlayAudio: _playTts, // Pass the callback
+                ),
               ],
             ),
           ),
