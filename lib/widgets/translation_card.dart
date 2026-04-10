@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; 
 import 'package:provider/provider.dart';
@@ -8,13 +9,12 @@ import '../providers/thesaurus_provider.dart';
 
 class TranslationCard extends StatefulWidget {
   final TextEditingController inputController;
-  // 1. CHỈNH SỬA: Nhận thêm callback để chơi audio từ màn hình cha
   final Function(String) onPlayAudio;
   
   const TranslationCard({
     super.key, 
     required this.inputController, 
-    required this.onPlayAudio, // Thêm vào constructor
+    required this.onPlayAudio,
   });
 
   @override
@@ -22,6 +22,13 @@ class TranslationCard extends StatefulWidget {
 }
 
 class _TranslationCardState extends State<TranslationCard> {
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
 
   void _copyToClipboard(BuildContext context, String text) {
     if (text.isNotEmpty) {
@@ -37,12 +44,15 @@ class _TranslationCardState extends State<TranslationCard> {
     }
   }
 
+  double _getResponsiveFontSize(String text) {
+    if (text.length > 100) return 22;
+    if (text.length > 50) return 28;
+    return 38;
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Sử dụng context.watch để lắng nghe thay đổi từ Provider
     final translationData = context.watch<TranslationProvider>();
-    final dictProvider = context.read<DictionaryProvider>();
-    final thesaurusProvider = context.read<ThesaurusProvider>(); 
 
     return Container(
       width: 1000,
@@ -76,13 +86,19 @@ class _TranslationCardState extends State<TranslationCard> {
                 label: "From:",
                 lang: translationData.sourceLanguage, 
                 controller: widget.inputController,
+                onChanged: (val) {
+                  if (_debounce?.isActive ?? false) _debounce!.cancel();
+                  _debounce = Timer(const Duration(milliseconds: 600), () {
+                    if (val.isNotEmpty) {
+                      translationData.handleTranslation(val);
+                    }
+                  });
+                },
                 onSubmitted: (val) async {
                   await translationData.handleTranslation(val);
                 },
                 onCopy: () => _copyToClipboard(context, widget.inputController.text),
-                // 2. CHỈNH SỬA: Lấy audio link cho phía nguồn
                 onAudio: () => widget.onPlayAudio(translationData.currentSourceAudio),
-                hasMic: true,
               ),
               
               VerticalDivider(width: 1, thickness: 1, color: Colors.grey[300]),
@@ -94,13 +110,7 @@ class _TranslationCardState extends State<TranslationCard> {
                 result: translationData.resultText,
                 isLoading: translationData.isLoading,
                 onCopy: () => _copyToClipboard(context, translationData.resultText),
-                // 3. CHỈNH SỬA: Lấy audio link cho phía dịch
                 onAudio: () => widget.onPlayAudio(translationData.currentTargetAudio),
-                onSeeMore: () {
-                  final result = translationData.resultText;
-                  dictProvider.searchWord(result);
-                  thesaurusProvider.searchThesaurus(result);
-                },
               ),
             ],
           ),
@@ -117,10 +127,10 @@ class _TranslationCardState extends State<TranslationCard> {
     required String label,
     required String lang,
     required TextEditingController controller,
+    required Function(String) onChanged,
     required Function(String) onSubmitted,
     required VoidCallback onCopy, 
-    required VoidCallback onAudio, // Thêm handler audio
-    bool hasMic = false,
+    required VoidCallback onAudio, 
   }) {
     return Expanded(
       child: Padding(
@@ -129,21 +139,30 @@ class _TranslationCardState extends State<TranslationCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _langHeader(label, lang),
-            const SizedBox(height: 30),
-            TextField(
-              controller: controller,
-              onSubmitted: onSubmitted,
-              style: const TextStyle(fontSize: 38, fontWeight: FontWeight.w400),
-              decoration: const InputDecoration(
-                hintText: "Nhập văn bản...",
-                border: InputBorder.none,
-                filled: true,
-                fillColor: Colors.transparent, 
-                hintStyle: TextStyle(color: Colors.grey),
+            const SizedBox(height: 10),
+            Expanded( 
+              child: TextField(
+                controller: controller,
+                onChanged: onChanged,
+                onSubmitted: onSubmitted,
+                maxLines: null,
+                keyboardType: TextInputType.multiline,
+                style: TextStyle(
+                  fontSize: _getResponsiveFontSize(controller.text), 
+                  fontWeight: FontWeight.w400
+                ),
+                decoration: const InputDecoration(
+                  hintText: "Nhập văn bản...",
+                  border: InputBorder.none,
+                  filled: true,
+                  fillColor: Colors.transparent, 
+                  hintStyle: TextStyle(color: Colors.grey),
+                  contentPadding: EdgeInsets.zero,
+                ),
               ),
             ),
-            const Spacer(),
-            _actionIcons(hasMic, onCopy, onAudio), 
+            const SizedBox(height: 10),
+            _actionIcons(onCopy, onAudio), 
           ],
         ),
       ),
@@ -156,8 +175,7 @@ class _TranslationCardState extends State<TranslationCard> {
     required String result,
     required bool isLoading,
     required VoidCallback onCopy, 
-    required VoidCallback onAudio, // Thêm handler audio
-    required VoidCallback onSeeMore,
+    required VoidCallback onAudio, 
   }) {
     return Expanded(
       child: Padding(
@@ -166,27 +184,24 @@ class _TranslationCardState extends State<TranslationCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _langHeader(label, lang),
-            const SizedBox(height: 30),
-            isLoading 
-                ? const Center(child: CircularProgressIndicator()) 
-                : SingleChildScrollView(
-                    child: Text(result, style: const TextStyle(fontSize: 38, fontWeight: FontWeight.w400)),
-                  ),
-            const Spacer(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _actionIcons(false, onCopy, onAudio), 
-                if (result.isNotEmpty && !result.startsWith("Error:")) 
-                  TextButton(
-                    onPressed: onSeeMore,
-                    child: const Text(
-                      "See Details",
-                      style: TextStyle(color: Color(0xFFB04B3A), fontWeight: FontWeight.bold),
+            const SizedBox(height: 10),
+            Expanded(
+              child: isLoading 
+                  ? const Center(child: CircularProgressIndicator()) 
+                  : SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Text(
+                        result, 
+                        style: TextStyle(
+                          fontSize: _getResponsiveFontSize(result), 
+                          fontWeight: FontWeight.w400
+                        ),
+                      ),
                     ),
-                  ),
-              ],
             ),
+            const SizedBox(height: 10),
+            // The Row now only contains the action icons
+            _actionIcons(onCopy, onAudio), 
           ],
         ),
       ),
@@ -203,15 +218,11 @@ class _TranslationCardState extends State<TranslationCard> {
     );
   }
 
-  // 4. CHỈNH SỬA: Thêm onAudio vào helper icons
-  Widget _actionIcons(bool hasMic, VoidCallback onCopy, VoidCallback onAudio) {
+  Widget _actionIcons(VoidCallback onCopy, VoidCallback onAudio) {
     return Row(
       children: [
-        if (hasMic) _actionIcon(Icons.mic_none),
-        if (hasMic) const SizedBox(width: 15),
         _actionIcon(Icons.copy, onTap: onCopy), 
         const SizedBox(width: 15),
-        // Nút loa bây giờ đã có logic onTap
         _actionIcon(Icons.volume_up_outlined, onTap: onAudio),
       ],
     );

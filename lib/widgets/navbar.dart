@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+// Add this import to access browser window properties
+import 'dart:html' as html; 
 import 'hover_builder.dart'; 
 
 class Navbar extends StatelessWidget {
@@ -18,15 +20,26 @@ class Navbar extends StatelessWidget {
       decoration: const BoxDecoration(color: Colors.white),
       child: Row(
         children: [
-          // Logo
-          const Text(
-            "N3Dictionary",
-            style: TextStyle(
-              color: Color(0xFFC85A48), // Adjusted to match the brownish-red
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
+          // --- UPDATED LOGO SECTION ---
+          GestureDetector(
+            onTap: () {
+              // This triggers a full browser reload
+              html.window.location.reload(); 
+            },
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click, // Changes cursor to "pointer" on web
+              child: const Text(
+                "N3Dictionary",
+                style: TextStyle(
+                  color: Color(0xFFC85A48), 
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
+          // ----------------------------
+          
           const Spacer(),
           
           // Menu Items
@@ -42,8 +55,10 @@ class Navbar extends StatelessWidget {
             children: [
               Icon(Icons.language, size: 20),
               SizedBox(width: 8),
-              Text("English(US)", style: TextStyle(fontWeight: FontWeight.w500)),
-              Icon(Icons.keyboard_arrow_down, size: 20),
+              Text(
+                "English(US)", 
+                style: TextStyle(fontWeight: FontWeight.w500)
+              ),
             ],
           ),
           const SizedBox(width: 30),
@@ -54,7 +69,6 @@ class Navbar extends StatelessWidget {
               const CircleAvatar(
                 radius: 18,
                 backgroundColor: Colors.grey,
-                // Using a generic image placeholder for the cat avatar
                 backgroundImage: NetworkImage('https://i.pinimg.com/736x/8f/c2/f7/8fc2f71661cb5561a7a2e2f3bb1f5c61.jpg'), 
               ),
               Positioned(
