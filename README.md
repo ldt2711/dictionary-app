@@ -1,17 +1,151 @@
-# dictionary_app
+# 📱 Dictionary App (Flutter)
 
-A new Flutter project.
+## 🚀 Giới thiệu
 
-## Getting Started
+Ứng dụng từ điển mobile:
 
-This project is a starting point for a Flutter application.
+* Tra từ
+* Hiển thị nghĩa
+* Kết nối API từ backend
 
-A few resources to get you started if this is your first Flutter project:
+---
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## 🛠️ Công nghệ
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+* Flutter
+* Dart
+* HTTP package
+
+---
+
+## 📦 Yêu cầu hệ thống
+
+* Flutter SDK
+* Android Studio hoặc VS Code
+* Emulator hoặc thiết bị thật
+
+---
+
+## ⚙️ Cài đặt & chạy
+
+### 1. Clone project
+
+```bash
+git clone dictionary-app
+cd dictionary_app
+```
+
+---
+
+### 2. Cài dependencies
+
+```bash
+flutter pub get
+```
+
+---
+
+### 3. Cấu hình API URL
+
+Mở file:
+
+```
+lib/config/api_config.dart
+```
+
+---
+
+### 4. Sửa URL theo môi trường
+
+#### Android Emulator:
+
+```dart
+static const String baseUrl = "http://10.0.2.2:8000";
+```
+
+#### Flutter Web:
+
+```dart
+static const String baseUrl = "http://localhost:8000";
+```
+
+#### Máy thật:
+
+```dart
+static const String baseUrl = "http://<IP_MÁY>:8000";
+```
+
+---
+
+## ▶️ Chạy ứng dụng
+
+```bash
+flutter run
+```
+
+---
+
+## 📁 Cấu trúc project
+
+```
+lib/
+│
+├── config/
+│   └── api_config.dart
+│
+├── services/
+│   └── api_service.dart
+│
+├── models/
+│
+├── screens/
+│
+└── main.dart
+```
+
+---
+
+## 🔗 Kết nối với backend
+
+Đảm bảo backend đang chạy:
+
+```
+http://localhost:8000
+```
+
+---
+
+## ⚠️ Lỗi thường gặp
+
+### ❌ Không gọi được API
+
+* Backend chưa chạy
+* Sai baseUrl
+* Sai port
+
+---
+
+### ❌ Android không có internet
+
+Thêm vào:
+
+```
+android/app/src/main/AndroidManifest.xml
+```
+
+```xml
+<uses-permission android:name="android.permission.INTERNET"/>
+```
+
+---
+
+## 🔥 Tips
+
+* Luôn chạy backend trước
+* Dùng Postman test API trước khi gọi từ app
+
+---
+
+## 👨‍💻 Tác giả
+
+* Nhóm 
