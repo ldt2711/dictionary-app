@@ -15,6 +15,20 @@ class TranslationProvider with ChangeNotifier {
 
   final List<TranslationHistory> _history = [];
 
+  // --- MỚI THÊM: Danh sách các ngôn ngữ hỗ trợ ---
+  static const Map<String, String> supportedLanguages = {
+    'Tiếng Việt': 'vi',
+    'English': 'en',
+    'Français (Pháp)': 'fr',
+    '日本語 (Nhật)': 'ja',
+    '한국어 (Hàn)': 'ko',
+    '中文 (Trung)': 'zh-CN',
+    'Español (Tây Ban Nha)': 'es',
+    'Deutsch (Đức)': 'de',
+    'Русский (Nga)': 'ru',
+    'ภาษาไทย (Thái)': 'th',
+  };
+
   // Getters
   String get resultText => _resultText;
   bool get isLoading => _isLoading;
@@ -24,8 +38,20 @@ class TranslationProvider with ChangeNotifier {
   String get currentTargetAudio => _currentTargetAudio;
   List<TranslationHistory> get history => _history;
 
+  // --- MỚI THÊM: Các hàm để UI cập nhật ngôn ngữ ---
+  void setSourceLanguage(String lang) {
+    _sourceLanguage = lang;
+    notifyListeners();
+  }
+
+  void setTargetLanguage(String lang) {
+    _targetLanguage = lang;
+    notifyListeners();
+  }
+
+  // --- CẬP NHẬT LẠI: Lấy mã ngôn ngữ từ Map ---
   String _getLangCode(String name) {
-    return name == "Tiếng Việt" ? "vi" : "en";
+    return supportedLanguages[name] ?? 'en'; // Mặc định là 'en' nếu không tìm thấy
   }
 
   void loadHistoryItem(TranslationHistory item, TextEditingController controller) {
@@ -51,7 +77,6 @@ class TranslationProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // --- HÀM MỚI 1: XÓA LỊCH SỬ KHI ĐĂNG XUẤT HOẶC ĐỔI TÀI KHOẢN ---
   void clearHistory() {
     _history.clear();
     _resultText = "";
@@ -60,18 +85,16 @@ class TranslationProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // --- HÀM MỚI 2: TẢI LỊCH SỬ TỪ SERVER VỀ ---
   Future<void> fetchUserHistory(int userId) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      // Gọi service để lấy list từ Backend
       final fetchedHistory = await _service.getUserHistory(userId);
       
       if (fetchedHistory != null) {
-        _history.clear(); // Xóa lịch sử cũ trên màn hình
-        _history.addAll(fetchedHistory); // Đổ dữ liệu mới vào
+        _history.clear(); 
+        _history.addAll(fetchedHistory); 
       }
     } catch (e) {
       debugPrint("Lỗi tải lịch sử: $e");

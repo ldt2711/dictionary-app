@@ -4,9 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'hover_builder.dart';
 import '../providers/translation_provider.dart';
-import '../providers/dictionary_provider.dart';
-import '../providers/thesaurus_provider.dart'; 
-import '../providers/auth_provider.dart'; // THÊM IMPORT NÀY: Để lấy ID người dùng
+import '../providers/auth_provider.dart'; 
 
 class TranslationCard extends StatefulWidget {
   final TextEditingController inputController;
@@ -91,14 +89,12 @@ class _TranslationCardState extends State<TranslationCard> {
                   if (_debounce?.isActive ?? false) _debounce!.cancel();
                   _debounce = Timer(const Duration(milliseconds: 600), () {
                     if (val.isNotEmpty) {
-                      // --- CẬP NHẬT 1: Lấy ID và truyền vào hàm dịch ---
                       final userId = context.read<AuthProvider>().userId;
                       translationData.handleTranslation(val, userId: userId);
                     }
                   });
                 },
                 onSubmitted: (val) async {
-                  // --- CẬP NHẬT 2: Lấy ID và truyền vào hàm dịch khi gõ Enter ---
                   final userId = context.read<AuthProvider>().userId;
                   await translationData.handleTranslation(val, userId: userId);
                 },
@@ -143,7 +139,8 @@ class _TranslationCardState extends State<TranslationCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _langHeader(label, lang),
+            // --- SỬA Ở ĐÂY: Thêm isSource: true ---
+            _langHeader(label, lang, isSource: true),
             const SizedBox(height: 10),
             Expanded( 
               child: TextField(
@@ -188,7 +185,8 @@ class _TranslationCardState extends State<TranslationCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _langHeader(label, lang),
+            // --- SỬA Ở ĐÂY: Thêm isSource: false ---
+            _langHeader(label, lang, isSource: false),
             const SizedBox(height: 10),
             Expanded(
               child: isLoading 
@@ -212,12 +210,41 @@ class _TranslationCardState extends State<TranslationCard> {
     );
   }
 
-  Widget _langHeader(String label, String lang) {
+  // --- HÀM MỚI: Hiển thị Menu Dropdown chọn ngôn ngữ ---
+  Widget _langHeader(String label, String currentLang, {required bool isSource}) {
+    final translationData = context.read<TranslationProvider>();
+    final List<String> languageNames = TranslationProvider.supportedLanguages.keys.toList();
+
     return Row(
       children: [
         Text(label, style: const TextStyle(color: Color.fromARGB(255, 52, 6, 6))),
         const SizedBox(width: 8),
-        Text(lang, style: const TextStyle(fontWeight: FontWeight.bold)),
+        DropdownButton<String>(
+          value: currentLang,
+          underline: const SizedBox(), 
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 16),
+          items: languageNames.map((String langName) {
+            return DropdownMenuItem<String>(
+              value: langName,
+              child: Text(langName),
+            );
+          }).toList(),
+          onChanged: (String? newValue) {
+            if (newValue != null) {
+              if (isSource) {
+                translationData.setSourceLanguage(newValue);
+              } else {
+                translationData.setTargetLanguage(newValue);
+              }
+              // Tự động dịch lại khi người dùng đổi ngôn ngữ
+              final userId = context.read<AuthProvider>().userId;
+              if (widget.inputController.text.isNotEmpty) {
+                 translationData.handleTranslation(widget.inputController.text, userId: userId);
+              }
+            }
+          },
+        ),
       ],
     );
   }
