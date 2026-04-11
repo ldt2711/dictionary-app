@@ -3,25 +3,25 @@ class DictionaryResult {
   final String pronunciation;
   final List<Definition> definitions;
   final List<String> grammarTips;
+  final String audio; // 1. Add this field
 
   DictionaryResult({
     required this.word,
     required this.pronunciation,
     required this.definitions,
     required this.grammarTips,
+    required this.audio, // 2. Add to constructor
   });
 
-  // ADD THIS: The logic to convert JSON into this class
   factory DictionaryResult.fromJson(Map<String, dynamic> json) {
     return DictionaryResult(
       word: json['word'] ?? '',
-      pronunciation: json['pronunciation'] ?? '',
-      // This part handles the list of definitions
-      definitions: (json['definitions'] as List)
-          .map((d) => Definition.fromJson(d))
-          .toList(),
-      // This handles the list of strings
-      grammarTips: List<String>.from(json['grammarTips'] ?? []),
+      pronunciation: json['phonetic'] ?? '', 
+      definitions: (json['meanings'] as List?)
+              ?.map((d) => Definition.fromJson(d))
+              .toList() ?? [],
+      grammarTips: [],
+      audio: json['audio'] ?? '', // 3. Map 'audio' from Flask
     );
   }
 }
@@ -37,10 +37,10 @@ class Definition {
     required this.example,
   });
 
-  // ADD THIS: Logic for the nested definition objects
   factory Definition.fromJson(Map<String, dynamic> json) {
     return Definition(
-      partOfSpeech: json['partOfSpeech'] ?? '',
+      // Map 'pos' from Flask to 'partOfSpeech'
+      partOfSpeech: json['pos'] ?? '', 
       meaning: json['meaning'] ?? '',
       example: json['example'] ?? '',
     );

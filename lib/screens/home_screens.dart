@@ -18,6 +18,16 @@ class _HomeScreenState extends State<HomeScreen> {
   String _currentNavTab = 'home';
   final TextEditingController _homeSearchController = TextEditingController();
 
+@override
+  void initState() {
+    super.initState();
+    // --- ADD THIS BLOCK ---
+    // This triggers as soon as the Home Screen is created
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<DictionaryProvider>().fetchWordOfTheDay();
+    });
+  }
+
   @override
   void dispose() {
     _homeSearchController.dispose();

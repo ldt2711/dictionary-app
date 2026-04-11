@@ -1,5 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // 1. Required for Clipboard
+import 'package:flutter/services.dart'; 
 import 'package:provider/provider.dart';
 import 'hover_builder.dart';
 import '../providers/translation_provider.dart';
@@ -7,23 +8,35 @@ import '../providers/dictionary_provider.dart';
 import '../providers/thesaurus_provider.dart'; 
 
 class TranslationCard extends StatefulWidget {
-  const TranslationCard({super.key});
+  final TextEditingController inputController;
+  final Function(String) onPlayAudio;
+  
+  const TranslationCard({
+    super.key, 
+    required this.inputController, 
+    required this.onPlayAudio,
+  });
 
   @override
   State<TranslationCard> createState() => _TranslationCardState();
 }
 
 class _TranslationCardState extends State<TranslationCard> {
-  final TextEditingController _inputController = TextEditingController();
+  Timer? _debounce;
 
-  // 2. Helper method to handle copying and feedback
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
   void _copyToClipboard(BuildContext context, String text) {
     if (text.isNotEmpty) {
       Clipboard.setData(ClipboardData(text: text));
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text("Copied to clipboard!"),
-          duration: const Duration(seconds: 2),
+          duration: Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
           width: 250,
         ),
@@ -31,17 +44,15 @@ class _TranslationCardState extends State<TranslationCard> {
     }
   }
 
-  @override
-  void dispose() {
-    _inputController.dispose();
-    super.dispose();
+  double _getResponsiveFontSize(String text) {
+    if (text.length > 100) return 22;
+    if (text.length > 50) return 28;
+    return 38;
   }
 
   @override
   Widget build(BuildContext context) {
-    final translationData = Provider.of<TranslationProvider>(context);
-    final dictProvider = Provider.of<DictionaryProvider>(context);
-    final thesaurusProvider = Provider.of<ThesaurusProvider>(context); 
+    final translationData = context.watch<TranslationProvider>();
 
     return Container(
       width: 1000,
@@ -55,59 +66,71 @@ class _TranslationCardState extends State<TranslationCard> {
       child: Stack(
         alignment: Alignment.center,
         children: [
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 500, 
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[100], 
+                borderRadius: const BorderRadius.horizontal(left: Radius.circular(24)),
+              ),
+            ),
+          ),
+
           Row(
             children: [
-              // LEFT PANE (From)
+              // LEFT PANE: SOURCE
               _buildInputPane(
                 label: "From:",
-                lang: "Tiếng Việt",
-                controller: _inputController,
+                lang: translationData.sourceLanguage, 
+                controller: widget.inputController,
+                onChanged: (val) {
+                  if (_debounce?.isActive ?? false) _debounce!.cancel();
+                  _debounce = Timer(const Duration(milliseconds: 600), () {
+                    if (val.isNotEmpty) {
+                      translationData.handleTranslation(val);
+                    }
+                  });
+                },
                 onSubmitted: (val) async {
                   await translationData.handleTranslation(val);
-                  if (mounted) {
-                    final result = translationData.resultText;
-                    context.read<DictionaryProvider>().searchWord(result);
-                  }
                 },
-                // Pass the copy logic for input text
-                onCopy: () => _copyToClipboard(context, _inputController.text),
-                hasMic: true,
+                onCopy: () => _copyToClipboard(context, widget.inputController.text),
+                onAudio: () => widget.onPlayAudio(translationData.currentSourceAudio),
               ),
               
               VerticalDivider(width: 1, thickness: 1, color: Colors.grey[300]),
               
-              // RIGHT PANE (To)
+              // RIGHT PANE: RESULT
               _buildResultPane(
                 label: "To:",
-                lang: "English",
+                lang: translationData.targetLanguage, 
                 result: translationData.resultText,
                 isLoading: translationData.isLoading,
-                // Pass the copy logic for result text
                 onCopy: () => _copyToClipboard(context, translationData.resultText),
-                onSeeMore: () {
-                  final result = translationData.resultText;
-                  dictProvider.searchWord(result);
-                  thesaurusProvider.searchThesaurus(result);
-                },
+                onAudio: () => widget.onPlayAudio(translationData.currentTargetAudio),
               ),
             ],
           ),
           
-          _swapButton(),
+          _swapButton(onTap: () {
+            translationData.swapLanguages(widget.inputController);
+          }),
         ],
       ),
     );
   }
 
-  // --- HELPER METHODS ---
-
   Widget _buildInputPane({
     required String label,
     required String lang,
     required TextEditingController controller,
+    required Function(String) onChanged,
     required Function(String) onSubmitted,
-    required VoidCallback onCopy, // Added
-    bool hasMic = false,
+    required VoidCallback onCopy, 
+    required VoidCallback onAudio, 
   }) {
     return Expanded(
       child: Padding(
@@ -116,19 +139,30 @@ class _TranslationCardState extends State<TranslationCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _langHeader(label, lang),
-            const SizedBox(height: 30),
-            TextField(
-              controller: controller,
-              onSubmitted: onSubmitted,
-              style: const TextStyle(fontSize: 38, fontWeight: FontWeight.w400),
-              decoration: const InputDecoration(
-                hintText: "Nhập văn bản...",
-                border: InputBorder.none,
-                hintStyle: TextStyle(color: Colors.grey),
+            const SizedBox(height: 10),
+            Expanded( 
+              child: TextField(
+                controller: controller,
+                onChanged: onChanged,
+                onSubmitted: onSubmitted,
+                maxLines: null,
+                keyboardType: TextInputType.multiline,
+                style: TextStyle(
+                  fontSize: _getResponsiveFontSize(controller.text), 
+                  fontWeight: FontWeight.w400
+                ),
+                decoration: const InputDecoration(
+                  hintText: "Nhập văn bản...",
+                  border: InputBorder.none,
+                  filled: true,
+                  fillColor: Colors.transparent, 
+                  hintStyle: TextStyle(color: Colors.grey),
+                  contentPadding: EdgeInsets.zero,
+                ),
               ),
             ),
-            const Spacer(),
-            _actionIcons(hasMic, onCopy), // Pass callback
+            const SizedBox(height: 10),
+            _actionIcons(onCopy, onAudio), 
           ],
         ),
       ),
@@ -140,8 +174,8 @@ class _TranslationCardState extends State<TranslationCard> {
     required String lang,
     required String result,
     required bool isLoading,
-    required VoidCallback onCopy, // Added
-    required VoidCallback onSeeMore,
+    required VoidCallback onCopy, 
+    required VoidCallback onAudio, 
   }) {
     return Expanded(
       child: Padding(
@@ -150,25 +184,24 @@ class _TranslationCardState extends State<TranslationCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _langHeader(label, lang),
-            const SizedBox(height: 30),
-            isLoading 
-                ? const Center(child: CircularProgressIndicator()) 
-                : Text(result, style: const TextStyle(fontSize: 38, fontWeight: FontWeight.w400)),
-            const Spacer(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _actionIcons(false, onCopy), // Pass callback
-                if (result.isNotEmpty && result != "Hello") 
-                  TextButton(
-                    onPressed: onSeeMore,
-                    child: const Text(
-                      "See Details",
-                      style: TextStyle(color: Color(0xFFB04B3A), fontWeight: FontWeight.bold),
+            const SizedBox(height: 10),
+            Expanded(
+              child: isLoading 
+                  ? const Center(child: CircularProgressIndicator()) 
+                  : SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Text(
+                        result, 
+                        style: TextStyle(
+                          fontSize: _getResponsiveFontSize(result), 
+                          fontWeight: FontWeight.w400
+                        ),
+                      ),
                     ),
-                  ),
-              ],
             ),
+            const SizedBox(height: 10),
+            // The Row now only contains the action icons
+            _actionIcons(onCopy, onAudio), 
           ],
         ),
       ),
@@ -178,22 +211,19 @@ class _TranslationCardState extends State<TranslationCard> {
   Widget _langHeader(String label, String lang) {
     return Row(
       children: [
-        Text(label, style: const TextStyle(color: Colors.grey)),
+        Text(label, style: const TextStyle(color: Color.fromARGB(255, 52, 6, 6))),
         const SizedBox(width: 8),
         Text(lang, style: const TextStyle(fontWeight: FontWeight.bold)),
-        const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
       ],
     );
   }
 
-  Widget _actionIcons(bool hasMic, VoidCallback onCopy) {
+  Widget _actionIcons(VoidCallback onCopy, VoidCallback onAudio) {
     return Row(
       children: [
-        if (hasMic) _actionIcon(Icons.mic_none),
-        if (hasMic) const SizedBox(width: 15),
-        _actionIcon(Icons.copy, onTap: onCopy), // Triggers copy
+        _actionIcon(Icons.copy, onTap: onCopy), 
         const SizedBox(width: 15),
-        _actionIcon(Icons.volume_up_outlined),
+        _actionIcon(Icons.volume_up_outlined, onTap: onAudio),
       ],
     );
   }
@@ -204,23 +234,26 @@ class _TranslationCardState extends State<TranslationCard> {
         onTap: onTap,
         child: Icon(
           icon,
-          color: isHovered ? Colors.blue : Colors.grey[600],
+          color: isHovered ? Colors.blue : const Color.fromARGB(255, 39, 12, 12),
           size: 22,
         ),
       ),
     );
   }
 
-  Widget _swapButton() {
+  Widget _swapButton({required VoidCallback onTap}) {
     return HoverBuilder(
-      builder: (isHovered) => AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: isHovered ? Colors.blue[700] : Colors.black,
-          shape: BoxShape.circle,
+      builder: (isHovered) => GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isHovered ? Colors.blue[700] : Colors.black,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.swap_horiz, color: Colors.white, size: 20),
         ),
-        child: const Icon(Icons.swap_horiz, color: Colors.white, size: 20),
       ),
     );
   }

@@ -11,18 +11,18 @@ class ThesaurusResult {
     required this.relatedPhrases,
   });
 
-  // --- THE FIX: Add this logic to handle the JSON file ---
   factory ThesaurusResult.fromJson(Map<String, dynamic> json) {
     return ThesaurusResult(
       word: json['word'] ?? '',
-      // List<String>.from ensures the dynamic JSON list becomes a clean String list
-      synonyms: List<String>.from(json['synonyms'] ?? []),
+      // SỬA CHỖ NÀY: Backend Flask trả về mảng đồng nghĩa dưới tên key là "thesauruses"
+      synonyms: List<String>.from(json['thesauruses'] ?? []), 
+      
+      // Mấy cái này API chưa trả về, cứ để [] cho an toàn
       antonyms: List<String>.from(json['antonyms'] ?? []),
       relatedPhrases: List<String>.from(json['relatedPhrases'] ?? []),
     );
   }
 
-  // Keeping your mock here is fine for testing!
   factory ThesaurusResult.mock(String word) {
     return ThesaurusResult(
       word: word,
