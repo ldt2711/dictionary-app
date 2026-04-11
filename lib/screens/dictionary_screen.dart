@@ -17,6 +17,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
   // Các biến quản lý Focus và Overlay cho popup lịch sử
   final FocusNode _focusNode = FocusNode();
   final LayerLink _layerLink = LayerLink();
+  final String baseUrl = "http://127.0.0.1:5000";
   OverlayEntry? _overlayEntry;
 
   @override
@@ -52,7 +53,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
   Future<void> _playPronunciation(String url) async {
     if (url.isNotEmpty) {
       try {
-        await _audioPlayer.play(UrlSource(url));
+        await _audioPlayer.play(UrlSource(baseUrl + url));
       } catch (e) {
         debugPrint("Error playing audio: $e");
       }
