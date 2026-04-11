@@ -44,10 +44,13 @@ class _TranslationCardState extends State<TranslationCard> {
   }
 
   double _getResponsiveFontSize(String text) {
-    if (text.length > 100) return 22;
-    if (text.length > 50) return 28;
-    return 38;
+    if (text.length > 100) return 20;
+    if (text.length > 50) return 26;
+    return 34;
   }
+
+  // Helper để viết hoa chữ cái đầu (vietnamese -> Vietnamese)
+  String _capitalize(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
   @override
   Widget build(BuildContext context) {
@@ -55,24 +58,22 @@ class _TranslationCardState extends State<TranslationCard> {
 
     return Container(
       width: 1000,
-      height: 320,
+      height: 350, // Tăng nhẹ chiều cao để dropdown thoải mái hơn
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.grey[300]!),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15)],
       ),
       child: Stack(
         alignment: Alignment.center,
         children: [
+          // Nền xám bên trái
           Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: 500, 
+            left: 0, top: 0, bottom: 0, width: 500, 
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.grey[100], 
+                color: Colors.grey[50], 
                 borderRadius: const BorderRadius.horizontal(left: Radius.circular(24)),
               ),
             ),
@@ -87,7 +88,7 @@ class _TranslationCardState extends State<TranslationCard> {
                 controller: widget.inputController,
                 onChanged: (val) {
                   if (_debounce?.isActive ?? false) _debounce!.cancel();
-                  _debounce = Timer(const Duration(milliseconds: 600), () {
+                  _debounce = Timer(const Duration(milliseconds: 700), () {
                     if (val.isNotEmpty) {
                       final userId = context.read<AuthProvider>().userId;
                       translationData.handleTranslation(val, userId: userId);
@@ -102,7 +103,7 @@ class _TranslationCardState extends State<TranslationCard> {
                 onAudio: () => widget.onPlayAudio(translationData.currentSourceAudio),
               ),
               
-              VerticalDivider(width: 1, thickness: 1, color: Colors.grey[300]),
+              VerticalDivider(width: 1, thickness: 1, color: Colors.grey[200]),
               
               // RIGHT PANE: RESULT
               _buildResultPane(
@@ -116,8 +117,14 @@ class _TranslationCardState extends State<TranslationCard> {
             ],
           ),
           
+          // Nút đổi chiều ngôn ngữ
           _swapButton(onTap: () {
             translationData.swapLanguages(widget.inputController);
+            // Sau khi swap, nếu có chữ thì dịch lại luôn
+            if (widget.inputController.text.isNotEmpty) {
+               translationData.handleTranslation(widget.inputController.text, 
+                  userId: context.read<AuthProvider>().userId);
+            }
           }),
         ],
       ),
@@ -135,13 +142,12 @@ class _TranslationCardState extends State<TranslationCard> {
   }) {
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.all(25.0),
+        padding: const EdgeInsets.all(30.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- SỬA Ở ĐÂY: Thêm isSource: true ---
             _langHeader(label, lang, isSource: true),
-            const SizedBox(height: 10),
+            const SizedBox(height: 15),
             Expanded( 
               child: TextField(
                 controller: controller,
@@ -151,10 +157,11 @@ class _TranslationCardState extends State<TranslationCard> {
                 keyboardType: TextInputType.multiline,
                 style: TextStyle(
                   fontSize: _getResponsiveFontSize(controller.text), 
-                  fontWeight: FontWeight.w400
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black87
                 ),
                 decoration: const InputDecoration(
-                  hintText: "Nhập văn bản...",
+                  hintText: "Enter text...",
                   border: InputBorder.none,
                   filled: true,
                   fillColor: Colors.transparent, 
@@ -163,7 +170,6 @@ class _TranslationCardState extends State<TranslationCard> {
                 ),
               ),
             ),
-            const SizedBox(height: 10),
             _actionIcons(onCopy, onAudio), 
           ],
         ),
@@ -181,28 +187,27 @@ class _TranslationCardState extends State<TranslationCard> {
   }) {
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.all(25.0),
+        padding: const EdgeInsets.all(30.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- SỬA Ở ĐÂY: Thêm isSource: false ---
             _langHeader(label, lang, isSource: false),
-            const SizedBox(height: 10),
+            const SizedBox(height: 15),
             Expanded(
               child: isLoading 
-                  ? const Center(child: CircularProgressIndicator()) 
+                  ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) 
                   : SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
                       child: Text(
                         result, 
                         style: TextStyle(
                           fontSize: _getResponsiveFontSize(result), 
-                          fontWeight: FontWeight.w400
+                          fontWeight: FontWeight.w400,
+                          color: Colors.blueGrey[800]
                         ),
                       ),
                     ),
             ),
-            const SizedBox(height: 10),
             _actionIcons(onCopy, onAudio), 
           ],
         ),
@@ -210,41 +215,50 @@ class _TranslationCardState extends State<TranslationCard> {
     );
   }
 
-  // --- HÀM MỚI: Hiển thị Menu Dropdown chọn ngôn ngữ ---
+  // --- DROPDOWN CHỌN NGÔN NGỮ ĐỘNG ---
   Widget _langHeader(String label, String currentLang, {required bool isSource}) {
     final translationData = context.read<TranslationProvider>();
-    final List<String> languageNames = TranslationProvider.supportedLanguages.keys.toList();
+    final supportedLangs = translationData.supportedLanguages;
+
+    // Lấy danh sách key (tên tiếng Anh) từ API
+    List<String> keys = supportedLangs.keys.toList();
 
     return Row(
       children: [
-        Text(label, style: const TextStyle(color: Color.fromARGB(255, 52, 6, 6))),
+        Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w500)),
         const SizedBox(width: 8),
-        DropdownButton<String>(
-          value: currentLang,
-          underline: const SizedBox(), 
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 16),
-          items: languageNames.map((String langName) {
-            return DropdownMenuItem<String>(
-              value: langName,
-              child: Text(langName),
-            );
-          }).toList(),
-          onChanged: (String? newValue) {
-            if (newValue != null) {
-              if (isSource) {
-                translationData.setSourceLanguage(newValue);
-              } else {
-                translationData.setTargetLanguage(newValue);
-              }
-              // Tự động dịch lại khi người dùng đổi ngôn ngữ
-              final userId = context.read<AuthProvider>().userId;
-              if (widget.inputController.text.isNotEmpty) {
-                 translationData.handleTranslation(widget.inputController.text, userId: userId);
-              }
-            }
-          },
-        ),
+        if (keys.isEmpty)
+          const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+        else
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: keys.contains(currentLang) ? currentLang : keys.first,
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Colors.blue),
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 15),
+              dropdownColor: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              items: keys.map((String key) {
+                return DropdownMenuItem<String>(
+                  value: key,
+                  child: Text(_capitalize(key)), // Hiển thị: Vietnamese
+                );
+              }).toList(),
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  if (isSource) {
+                    translationData.setSourceLanguage(newValue);
+                  } else {
+                    translationData.setTargetLanguage(newValue);
+                  }
+                  // Tự động dịch lại khi đổi ngôn ngữ
+                  if (widget.inputController.text.isNotEmpty) {
+                     translationData.handleTranslation(widget.inputController.text, 
+                        userId: context.read<AuthProvider>().userId);
+                  }
+                }
+              },
+            ),
+          ),
       ],
     );
   }
@@ -252,9 +266,9 @@ class _TranslationCardState extends State<TranslationCard> {
   Widget _actionIcons(VoidCallback onCopy, VoidCallback onAudio) {
     return Row(
       children: [
-        _actionIcon(Icons.copy, onTap: onCopy), 
-        const SizedBox(width: 15),
-        _actionIcon(Icons.volume_up_outlined, onTap: onAudio),
+        _actionIcon(Icons.copy_rounded, onTap: onCopy), 
+        const SizedBox(width: 20),
+        _actionIcon(Icons.volume_up_rounded, onTap: onAudio),
       ],
     );
   }
@@ -265,8 +279,8 @@ class _TranslationCardState extends State<TranslationCard> {
         onTap: onTap,
         child: Icon(
           icon,
-          color: isHovered ? Colors.blue : const Color.fromARGB(255, 39, 12, 12),
-          size: 22,
+          color: isHovered ? Colors.blue : Colors.grey[400],
+          size: 20,
         ),
       ),
     );
@@ -278,12 +292,20 @@ class _TranslationCardState extends State<TranslationCard> {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: isHovered ? Colors.blue[700] : Colors.black,
+            color: isHovered ? Colors.blue : Colors.white,
             shape: BoxShape.circle,
+            border: Border.all(color: Colors.grey[200]!),
+            boxShadow: [
+              BoxShadow(color: isHovered ? Colors.blue.withOpacity(0.3) : Colors.black12, blurRadius: 8)
+            ],
           ),
-          child: const Icon(Icons.swap_horiz, color: Colors.white, size: 20),
+          child: Icon(
+            Icons.swap_horiz_rounded, 
+            color: isHovered ? Colors.white : Colors.blue, 
+            size: 22
+          ),
         ),
       ),
     );

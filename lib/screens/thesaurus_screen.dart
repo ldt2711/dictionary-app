@@ -140,10 +140,18 @@ class _ThesaurusScreenState extends State<ThesaurusScreen> {
                     if (provider.isLoading) {
                       return const Center(child: CircularProgressIndicator());
                     }
+
+                    // 1. Priority: Show error state if the word wasn't found (404)
+                    if (provider.errorMessage != null) {
+                      return _buildErrorState(provider.errorMessage!);
+                    }
+
+                    // 2. Show result if data exists
                     final data = provider.result;
                     if (data == null) {
                       return _buildEmptyState();
                     }
+
                     return _buildSynonymList(data);
                   },
                 ),
@@ -155,6 +163,7 @@ class _ThesaurusScreenState extends State<ThesaurusScreen> {
     );
   }
 
+  // Widget: Search Bar logic
   Widget _buildSearchBar() {
     return CompositedTransformTarget(
       link: _layerLink,
@@ -196,6 +205,7 @@ class _ThesaurusScreenState extends State<ThesaurusScreen> {
     );
   }
 
+  // Widget: Default state before searching
   Widget _buildEmptyState() {
     return const Center(
       child: Text(
@@ -205,6 +215,38 @@ class _ThesaurusScreenState extends State<ThesaurusScreen> {
     );
   }
 
+  // Widget: Error state (Orange Sad Face) - Matches DictionaryScreen for consistency
+  Widget _buildErrorState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.sentiment_dissatisfied, 
+            size: 80, 
+            color: Colors.orangeAccent
+          ),
+          const SizedBox(height: 15),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 18, 
+              fontWeight: FontWeight.w500, 
+              color: Colors.black87
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            "Check your spelling or try a different word.",
+            style: TextStyle(color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Widget: Displaying synonyms in a Wrap collection
   Widget _buildSynonymList(ThesaurusResult data) {
     return ListView(
       physics: const BouncingScrollPhysics(),
@@ -218,6 +260,8 @@ class _ThesaurusScreenState extends State<ThesaurusScreen> {
           ),
         ),
         const SizedBox(height: 20),
+        
+        // Final fallback if result came back but synonyms list is empty
         if (data.synonyms.isEmpty)
           const Padding(
             padding: EdgeInsets.only(top: 10),
@@ -236,6 +280,7 @@ class _ThesaurusScreenState extends State<ThesaurusScreen> {
     );
   }
 
+  // Widget: Individual Synonym Chip
   Widget _buildSynonymChip(String word) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),

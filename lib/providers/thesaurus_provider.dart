@@ -7,35 +7,44 @@ class ThesaurusProvider extends ChangeNotifier {
 
   ThesaurusResult? _result;
   bool _isLoading = false;
-  
-  // --- THÊM LỊCH SỬ TÌM KIẾM ---
+  String? _errorMessage; // Tracks the 404 / Error state
+
   final List<String> _searchHistory = [];
 
+  // Getters
   ThesaurusResult? get result => _result;
   bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
   List<String> get searchHistory => _searchHistory;
 
   Future<void> searchThesaurus(String query) async {
     if (query.isEmpty) return;
 
+    // 1. Reset state for the new search
     _isLoading = true;
-    _result = null; 
+    _result = null;
+    _errorMessage = null; // Important: clear previous errors
     notifyListeners();
 
-    // Thêm vào lịch sử
     addToHistory(query);
 
     try {
       final data = await _apiService.getRequest('/thesaurus/$query');
 
-      if (data != null) {
-        if (data.containsKey('message') && data['message'] == 'Word not found') {
-           _result = ThesaurusResult(word: query, synonyms: [], antonyms: [], relatedPhrases: []);
-        } else {
-           _result = ThesaurusResult.fromJson(data);
-        }
+      if (data == null) {
+        // Case: Backend returned 404 or null
+        _errorMessage = "We couldn't find synonyms for '$query'";
+      } else if (data is Map && data.containsKey('message') && data['message'] == 'Word not found') {
+        // Case: Backend returned a "not found" JSON message
+        _errorMessage = "We couldn't find synonyms for '$query'";
+      } else {
+        // Case: Success!
+        _result = ThesaurusResult.fromJson(data);
+        _errorMessage = null;
       }
     } catch (e) {
+      // Case: Connection error or parsing crash
+      _errorMessage = "Something went wrong. Please check your connection.";
       debugPrint("Thesaurus Provider Error: $e");
     } finally {
       _isLoading = false;
@@ -43,7 +52,7 @@ class ThesaurusProvider extends ChangeNotifier {
     }
   }
 
-  // --- HÀM QUẢN LÝ LỊCH SỬ ---
+  // --- HISTORY MANAGEMENT ---
   void addToHistory(String word) {
     if (word.trim().isEmpty) return;
     _searchHistory.remove(word);

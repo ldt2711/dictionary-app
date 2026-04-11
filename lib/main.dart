@@ -11,14 +11,26 @@ import 'providers/dictionary_provider.dart';
 import 'providers/thesaurus_provider.dart';
 import 'providers/auth_provider.dart'; 
 
-void main() {
+void main() async {
+  // 1. Đảm bảo các dịch vụ của Flutter đã sẵn sàng
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 2. Khởi tạo TranslationProvider trước để tải danh sách ngôn ngữ từ API
+  final translationProvider = TranslationProvider();
+  
+  // Tải danh sách 100+ ngôn ngữ từ Flask Server ngay khi mở App
+  // Việc này giúp Dropdown không bị trống khi người dùng mở tab Translate
+  await translationProvider.loadLanguagesFromServer();
 
   runApp(
     MultiProvider(
       providers: [
+        // Khởi tạo Auth
         ChangeNotifierProvider(create: (_) => AuthProvider()), 
-        ChangeNotifierProvider(create: (_) => TranslationProvider()),
+        
+        // Sử dụng .value vì chúng ta đã khởi tạo và load data cho translationProvider ở trên
+        ChangeNotifierProvider.value(value: translationProvider),
+        
         ChangeNotifierProvider(create: (_) => DictionaryProvider()),
         ChangeNotifierProvider(create: (_) => ThesaurusProvider()),
       ],
@@ -56,11 +68,11 @@ class MyApp extends StatelessWidget {
         ),
       ),
       
-      // --- CẬP NHẬT: Trang chủ (/) giờ là HomeScreen ---
+      // Trang chủ (/) giờ là HomeScreen (Chế độ Guest)
       initialRoute: '/', 
       routes: {
-        '/': (context) => const HomeScreen(),       // Guest mode: Vào thẳng đây
-        '/login': (context) => const AuthScreen(),  // Trang login được chuyển ra route riêng
+        '/': (context) => const HomeScreen(),      
+        '/login': (context) => const AuthScreen(), 
       },
     );
   }

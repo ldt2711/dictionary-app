@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import 'dart:html' as html; 
 import 'package:provider/provider.dart'; 
 import 'hover_builder.dart'; 
-import '../screens/auth_screen.dart';
 import '../providers/auth_provider.dart'; 
-import '../providers/translation_provider.dart'; // THÊM IMPORT NÀY: Để xóa lịch sử khi Sign out
+import '../providers/translation_provider.dart';
 
 class Navbar extends StatelessWidget {
   final String currentTab;
@@ -19,20 +18,20 @@ class Navbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Đọc trạng thái đăng nhập
+    // 1. Kiểm tra trạng thái đăng nhập từ AuthProvider
     final authProvider = context.watch<AuthProvider>();
     final isLoggedIn = authProvider.isLoggedIn;
     final username = authProvider.username ?? "";
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: Colors.black12, width: 1)),
       ),
       child: Row(
         children: [
-          // Logo - Reloads the page
+          // Logo - Bấm vào load lại trang web
           GestureDetector(
             onTap: () => html.window.location.reload(),
             child: MouseRegion(
@@ -42,32 +41,23 @@ class Navbar extends StatelessWidget {
                 style: TextStyle(
                   color: Color(0xFFC85A48), 
                   fontSize: 24,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           ),
-          const Spacer(),
-          
-          // Menu Items
-          _navItem(Icons.home_outlined, "Home", "home"),
-          _navItem(Icons.book_outlined, "Dictionary", "dictionary"),
-          _navItem(Icons.translate, "Translate", "translate"),
-          _navItem(Icons.waves_rounded, "Thesaurus", "thesaurus"),
           
           const Spacer(),
           
-          // Language
-          const Row(
-            children: [
-              Icon(Icons.language, size: 20),
-              SizedBox(width: 8),
-              Text("English(US)", style: TextStyle(fontWeight: FontWeight.w500)),
-            ],
-          ),
-          const SizedBox(width: 30),
+          // Menu Items (Logic xóa kết quả dịch khi chuyển tab)
+          _navItem(context, Icons.home_outlined, "Home", "home"),
+          _navItem(context, Icons.book_outlined, "Dictionary", "dictionary"),
+          _navItem(context, Icons.translate, "Translate", "translate"),
+          _navItem(context, Icons.waves_rounded, "Thesaurus", "thesaurus"),
+          
+          const Spacer(),
 
-          // --- CẬP NHẬT: LOGIC HIỂN THỊ DỰA TRÊN TRẠNG THÁI ĐĂNG NHẬP ---
+          // Auth Section: Hiển thị Lời chào + Avatar hoặc nút Sign in
           isLoggedIn 
             ? Row(
                 children: [
@@ -80,18 +70,17 @@ class Navbar extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 15),
-                  const ProfileAvatarMenu(),
+                  const ProfileAvatarMenu(), // Avatar UI
                 ],
               )
             : ElevatedButton(
                 onPressed: () {
-                  // Mở màn hình Login khi click
                   Navigator.pushNamed(context, '/login');
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF29B6F6),
                   elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 ),
                 child: const Text(
@@ -104,10 +93,14 @@ class Navbar extends StatelessWidget {
     );
   }
 
-  Widget _navItem(IconData icon, String label, String tabId) {
+  Widget _navItem(BuildContext context, IconData icon, String label, String tabId) {
     bool isSelected = currentTab == tabId;
     return GestureDetector(
-      onTap: () => onTabSelected(tabId),
+      onTap: () {
+        // --- LOGIC QUAN TRỌNG: Xóa kết quả dịch cũ khi đổi tab ---
+        context.read<TranslationProvider>().resetCurrentTranslation();
+        onTabSelected(tabId);
+      },
       child: HoverBuilder(
         builder: (isHovered) {
           Color contentColor = isSelected ? const Color(0xFFC85A48) : (isHovered ? Colors.blue : Colors.black87);
@@ -117,7 +110,14 @@ class Navbar extends StatelessWidget {
               children: [
                 Icon(icon, size: 20, color: contentColor),
                 const SizedBox(width: 6),
-                Text(label, style: TextStyle(color: contentColor, fontSize: 15, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)),
+                Text(
+                  label, 
+                  style: TextStyle(
+                    color: contentColor, 
+                    fontSize: 15, 
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal
+                  )
+                ),
               ],
             ),
           );
@@ -127,7 +127,7 @@ class Navbar extends StatelessWidget {
   }
 }
 
-// --- UPDATED SUB-WIDGET WITH TIMER & CLICK FIX ---
+// --- PROFILE AVATAR: Thiết kế Viền mỏng + Icon mặc định ---
 class ProfileAvatarMenu extends StatefulWidget {
   const ProfileAvatarMenu({super.key});
 
@@ -141,16 +141,12 @@ class _ProfileAvatarMenuState extends State<ProfileAvatarMenu> {
 
   void _showMenu() {
     _hideTimer?.cancel(); 
-    if (!_tooltipController.isShowing) {
-      _tooltipController.show();
-    }
+    if (!_tooltipController.isShowing) _tooltipController.show();
   }
 
   void _hideMenu() {
     _hideTimer?.cancel();
-    _hideTimer = Timer(const Duration(milliseconds: 200), () {
-      _tooltipController.hide();
-    });
+    _hideTimer = Timer(const Duration(milliseconds: 200), () => _tooltipController.hide());
   }
 
   @override
@@ -168,32 +164,49 @@ class _ProfileAvatarMenuState extends State<ProfileAvatarMenu> {
         controller: _tooltipController,
         overlayChildBuilder: (context) {
           return Positioned(
-            top: 60, // Sits right below the navbar
+            top: 65, 
             right: 40,
             child: MouseRegion(
-              onEnter: (_) => _showMenu(), 
+              onEnter: (_) => _showMenu(),
               onExit: (_) => _hideMenu(),
               child: _buildSignOutButton(context), 
             ),
           );
         },
         child: Stack(
+          alignment: Alignment.center,
           children: [
-            const CircleAvatar(
-              radius: 18,
-              backgroundColor: Colors.grey,
-              backgroundImage: NetworkImage('https://i.pinimg.com/736x/8f/c2/f7/8fc2f71661cb5561a7a2e2f3bb1f5c61.jpg'), 
+            // 1. Viền mỏng và Icon mặc định (Giống Figma)
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.black54, // Viền xám mỏng
+                  width: 1.0, 
+                ),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.person,
+                  size: 30,
+                  color: Color(0xFF374151), // Màu xám đậm cho icon
+                ),
+              ),
             ),
+            // 2. Chấm xanh Online có viền trắng
             Positioned(
-              right: 0,
               bottom: 0,
+              right: 0,
               child: Container(
                 width: 12,
                 height: 12,
                 decoration: BoxDecoration(
-                  color: Colors.greenAccent[700],
+                  color: const Color(0xFF22C55E), // Màu xanh lá chuẩn
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+                  border: Border.all(color: Colors.white, width: 2.0), 
                 ),
               ),
             ),
@@ -208,34 +221,29 @@ class _ProfileAvatarMenuState extends State<ProfileAvatarMenu> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
-          debugPrint("Sign Out Clicked!");
           _tooltipController.hide();
-          
-          // 1. Xóa sạch lịch sử dịch của User hiện tại trên UI
+          // Xóa lịch sử hiển thị và đăng xuất
           context.read<TranslationProvider>().clearHistory();
-
-          // 2. Gọi hàm logout từ AuthProvider để xóa trạng thái
           context.read<AuthProvider>().logout();
-          
-          // 3. Về trang chủ (HomeScreen) dưới danh nghĩa Khách
+          // Đưa về trang chủ dưới danh nghĩa khách
           Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
         },
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.black12),
             boxShadow: const [
-              BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 5))
+              BoxShadow(color: Colors.black12, blurRadius: 15, offset: Offset(0, 8))
             ],
           ),
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.logout, size: 18, color: Colors.black87),
-              SizedBox(width: 10), 
+              Icon(Icons.logout_rounded, size: 18, color: Colors.black87),
+              SizedBox(width: 12),  
               Text(
                 "Sign out", 
                 style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 14)
