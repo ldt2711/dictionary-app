@@ -35,11 +35,9 @@ class ApiService {
         body: jsonEncode(body),
       );
 
-      // Lưu ý: Flask của bạn trả về 200 cho Login/Register thành công
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        // Trường hợp login thất bại (401) cũng nên trả về body để lấy message lỗi
         if (response.body.isNotEmpty) {
           return jsonDecode(response.body);
         }
@@ -53,7 +51,7 @@ class ApiService {
   }
 
   // ============================================================
-  // CÁC HÀM MỚI THÊM CHO AUTH & HISTORY
+  // CÁC HÀM AUTH & HISTORY
   // ============================================================
 
   // 3. ĐĂNG NHẬP
@@ -74,7 +72,7 @@ class ApiService {
     return result;
   }
 
-  // 5. ĐỒNG BỘ LỊCH SỬ (Gọi ngay sau khi đăng nhập thành công)
+  // 5. ĐỒNG BỘ LỊCH SỬ
   Future<bool> mergeHistory(int userId, String sessionId) async {
     final result = await postRequest("/merge-history", {
       "user_id": userId,
@@ -84,7 +82,7 @@ class ApiService {
     return result != null && result['message'] == "Merge success";
   }
 
-  // 6. LẤY LỊCH SỬ (Cả cho khách và user đã login)
+  // 6. LẤY LỊCH SỬ
   Future<List<dynamic>> fetchHistory({int? userId, String? sessionId}) async {
     String endpoint = "/history?";
     if (userId != null) {
@@ -95,5 +93,19 @@ class ApiService {
 
     final result = await getRequest(endpoint);
     return result ?? [];
+  }
+
+  // ============================================================
+  // MỚI: HÀM LẤY DANH SÁCH NGÔN NGỮ ĐỘNG
+  // ============================================================
+  
+  // 7. LẤY DANH SÁCH NGÔN NGỮ (Từ Google Translator qua Flask)
+  Future<Map<String, String>> fetchLanguages() async {
+    final result = await getRequest("/languages");
+    if (result != null) {
+      // Ép kiểu dynamic sang Map<String, String> một cách an toàn
+      return Map<String, String>.from(result);
+    }
+    return {}; // Trả về Map rỗng nếu có lỗi để app không bị crash
   }
 }

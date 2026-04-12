@@ -6,6 +6,9 @@ import 'api_service.dart';
 class TranslationService {
   final ApiService _apiService = ApiService(); 
 
+  // --- Hàm Helper: Viết hoa chữ cái đầu (vietnamese -> Vietnamese) ---
+  String _capitalize(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
   // --- Hàm dịch ---
   Future<TranslationResult?> translate(
     String text, 
@@ -34,44 +37,36 @@ class TranslationService {
     }
   }
 
-  // --- HÀM MỚI: Dịch ngược mã code từ Database (vi, en, fr...) thành Tên ngôn ngữ để hiển thị ---
-  String _getLangNameFromCode(String code) {
-    const Map<String, String> codeToName = {
-      'vi': 'Tiếng Việt',
-      'en': 'English',
-      'fr': 'Français (Pháp)',
-      'ja': '日本語 (Nhật)',
-      'ko': '한국어 (Hàn)',
-      'zh-CN': '中文 (Trung)',
-      'es': 'Español (Tây Ban Nha)',
-      'de': 'Deutsch (Đức)',
-      'ru': 'Русский (Nga)',
-      'th': 'ภาษาไทย (Thái)'
-    };
-    return codeToName[code] ?? 'English'; // Trả về English nếu gặp mã lạ
+  // --- CẬP NHẬT: Dịch ngược mã code dựa trên Map động từ API ---
+  String _getLangNameFromCode(String code, Map<String, String> langMap) {
+    // Tìm trong Map cái Key nào có Value trùng với mã code (ví dụ: tìm 'vietnamese' từ 'vi')
+    String? name = langMap.keys.firstWhere(
+      (k) => langMap[k] == code, 
+      orElse: () => code, // Nếu không thấy thì hiện mã code (ví dụ: 'af')
+    );
+    return _capitalize(name);
   }
 
-  // --- Hàm lấy lịch sử dịch của User ---
-  Future<List<TranslationHistory>?> getUserHistory(int userId) async {
+  // --- CẬP NHẬT: Lấy lịch sử dịch ---
+  // Thêm tham số langMap để hàm này biết cách đổi 'vi' -> 'Vietnamese' cho 100+ ngôn ngữ
+  Future<List<TranslationHistory>?> getUserHistory(int userId, Map<String, String> langMap) async {
     try {
-      // Gọi API lấy lịch sử từ Flask
       final data = await _apiService.fetchHistory(userId: userId);
       
-      // Nếu có dữ liệu, chuyển JSON thành List<TranslationHistory>
       if (data.isNotEmpty) {
         return data.map((json) => TranslationHistory(
           origin: json['source_text'] ?? "",
           translated: json['translated_text'] ?? "",
           
-          // CẬP NHẬT Ở ĐÂY: Sử dụng hàm _getLangNameFromCode để hiển thị đúng ngôn ngữ
-          fromLang: _getLangNameFromCode(json['source_lang'] ?? 'en'),
-          toLang: _getLangNameFromCode(json['target_lang'] ?? 'vi'),
+          // Sử dụng hàm tra cứu động thay vì Map cứng 10 cái như trước
+          fromLang: _getLangNameFromCode(json['source_lang'] ?? 'en', langMap),
+          toLang: _getLangNameFromCode(json['target_lang'] ?? 'vi', langMap),
           
           sourceAudio: json['source_audio'] ?? "",
           targetAudio: json['target_audio'] ?? "",
         )).toList();
       }
-      return []; // Trả về mảng rỗng nếu chưa có lịch sử
+      return [];
     } catch (e) {
       debugPrint("Lỗi Get History: $e");
       return null;

@@ -176,6 +176,10 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                     if (provider.isLoading) {
                       return const Center(child: CircularProgressIndicator());
                     }
+                    // 1. Check for Error Message first
+                    if (provider.errorMessage != null) {
+                      return _buildErrorState(provider.errorMessage!);
+                    }
 
                     final data = provider.result;
                     if (data == null) {
@@ -339,6 +343,29 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                 style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic),
               ),
             ),
+        ],
+      ),
+    );
+  }
+  
+  // --- ADD THIS NEW WIDGET METHOD AT THE BOTTOM OF THE CLASS ---
+  Widget _buildErrorState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.sentiment_dissatisfied, size: 80, color: Colors.orangeAccent),
+          const SizedBox(height: 15),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.black87),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            "Check your spelling or try a different word.",
+            style: TextStyle(color: Colors.grey),
+          ),
         ],
       ),
     );

@@ -152,4 +152,11 @@ class _TranslateScreenState extends State<TranslateScreen> {
       ],
     );
   }
+
+  @override
+  void deactivate() {
+    // This triggers when the user switches to another tab
+    _inputController.clear(); 
+    super.deactivate();
+  }
 }
