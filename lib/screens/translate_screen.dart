@@ -20,7 +20,6 @@ class _TranslateScreenState extends State<TranslateScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   
   // Replace this with your actual local IP or 'http://localhost:5000' for web
-  final String baseUrl = "http://127.0.0.1:5000";
 
   @override
   void dispose() {
@@ -34,7 +33,7 @@ class _TranslateScreenState extends State<TranslateScreen> {
     if (path.isNotEmpty) {
       try {
         // Prepend the base URL so Flutter knows to hit your Flask server
-        await _audioPlayer.play(UrlSource(baseUrl + path));
+        await _audioPlayer.play(UrlSource(path));
       } catch (e) {
         debugPrint("TTS Play Error: $e");
       }
