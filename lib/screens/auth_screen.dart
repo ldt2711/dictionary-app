@@ -2,7 +2,7 @@ import '../services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import '../providers/translation_provider.dart'; // THÊM IMPORT NÀY
+import '../providers/translation_provider.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -16,9 +16,6 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
   
-  // --- CỜ NHẬN DIỆN ĐĂNG KÝ MỚI ---
-  bool _isNewlyRegistered = false; 
-
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
@@ -61,32 +58,24 @@ class _AuthScreenState extends State<AuthScreen> {
           final userId = authProvider.userId;
           
           if (userId != null) {
-            if (_isNewlyRegistered) {
-              // 1a. TÀI KHOẢN MỚI: Gộp dữ liệu
-              try {
-                // Gọi API Merge
-                await ApiService().mergeHistory(userId, "user_001");
-                
-                // MỚI THÊM: Try/Catch bọc riêng cho fetchUserHistory để không làm sập luồng
-                try {
-                  await context.read<TranslationProvider>().fetchUserHistory(userId);
-                } catch (e) {
-                  debugPrint("Không thể tải lịch sử sau khi gộp: $e");
-                }
-                
-              } catch (e) {
-                debugPrint("Lỗi gộp lịch sử: $e");
-              }
-              _isNewlyRegistered = false; 
-            } else {
-              // 1b. TÀI KHOẢN CŨ: Tải dữ liệu cũ
-              context.read<TranslationProvider>().clearHistory();
-              
-              try {
-                await context.read<TranslationProvider>().fetchUserHistory(userId);
-              } catch (e) {
-                 debugPrint("Không thể tải lịch sử: $e");
-              }
+            // LƯU Ý QUAN TRỌNG: Thay "user_001" bằng session_id thực tế 
+            // mà bạn đang dùng khi khách vãng lai dịch từ. 
+            // Ví dụ: context.read<TranslationProvider>().sessionId
+            String currentSessionId = "user_001"; 
+
+            // LUÔN GỌI GỘP LỊCH SỬ CHO MỌI LẦN ĐĂNG NHẬP
+            try {
+              await ApiService().mergeHistory(userId, currentSessionId);
+            } catch (e) {
+              debugPrint("Lỗi gộp lịch sử: $e");
+            }
+
+            // Xóa lịch sử cũ trên UI và tải lại lịch sử mới nhất từ DB
+            context.read<TranslationProvider>().clearHistory();
+            try {
+              await context.read<TranslationProvider>().fetchUserHistory(userId);
+            } catch (e) {
+              debugPrint("Không thể tải lịch sử sau khi gộp: $e");
             }
           }
 
@@ -104,7 +93,6 @@ class _AuthScreenState extends State<AuthScreen> {
           _showSnackBar("Welcome! Please login with your new account.");
           setState(() {
             _isLogin = true;
-            _isNewlyRegistered = true; 
           });
           _passwordController.clear();
         } else {
@@ -261,8 +249,6 @@ class _AuthScreenState extends State<AuthScreen> {
                                   _isLogin = !_isLogin;
                                   _usernameController.clear();
                                   _passwordController.clear();
-                                  // Hủy cờ nếu người dùng chủ động chuyển tab
-                                  _isNewlyRegistered = false; 
                                 });
                               },
                               child: Text(
