@@ -12,6 +12,7 @@ class ApiService {
       };
 
   // 1. FOR GET REQUESTS
+  // Asking the server for infomation
   Future<dynamic> getRequest(String endpoint) async {
     try {
       final url = Uri.parse("$baseUrl$endpoint");
@@ -30,6 +31,7 @@ class ApiService {
   }
 
   // 2. FOR POST REQUESTS
+  // Sending data to server
   Future<dynamic> postRequest(String endpoint, Map<String, dynamic> body) async {
     try {
       final url = Uri.parse("$baseUrl$endpoint");
