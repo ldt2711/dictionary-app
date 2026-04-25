@@ -1,19 +1,21 @@
+import 'package:dictionary_app/config/api_config.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // --- Screens ---
-import 'screens/home_screens.dart';
+import 'screens/home_screen.dart';
 import 'screens/auth_screen.dart'; 
 
 // --- Providers ---
 import 'providers/translation_provider.dart';
 import 'providers/dictionary_provider.dart';
-import 'providers/thesaurus_provider.dart';
+import 'providers/word_relation_provider.dart';
 import 'providers/auth_provider.dart'; 
 
 void main() async {
   // 1. Đảm bảo các dịch vụ của Flutter đã sẵn sàng
   WidgetsFlutterBinding.ensureInitialized();
+  print("Backend Server IP: ${ApiConfig.baseUrl}");
 
   // 2. Khởi tạo TranslationProvider trước để tải danh sách ngôn ngữ từ API
   final translationProvider = TranslationProvider();
@@ -32,7 +34,7 @@ void main() async {
         ChangeNotifierProvider.value(value: translationProvider),
         
         ChangeNotifierProvider(create: (_) => DictionaryProvider()),
-        ChangeNotifierProvider(create: (_) => ThesaurusProvider()),
+        ChangeNotifierProvider(create: (_) => WordRelationProvider()),
       ],
       child: const MyApp(),
     ),

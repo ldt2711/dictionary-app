@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/translation_provider.dart';
+import '../config/api_config.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -51,26 +52,21 @@ class _AuthScreenState extends State<AuthScreen> {
       final authProvider = context.read<AuthProvider>();
       
       if (_isLogin) {
-        // --- 1. LOGIC ĐĂNG NHẬP ---
         final success = await authProvider.login(username, password);
         
         if (success && mounted) {
           final userId = authProvider.userId;
           
           if (userId != null) {
-            // LƯU Ý QUAN TRỌNG: Thay "user_001" bằng session_id thực tế 
-            // mà bạn đang dùng khi khách vãng lai dịch từ. 
-            // Ví dụ: context.read<TranslationProvider>().sessionId
-            String currentSessionId = "user_001"; 
+            // Lấy session ID động thay vì "user_001"
+            String currentSessionId = ApiConfig.sessionId; 
 
-            // LUÔN GỌI GỘP LỊCH SỬ CHO MỌI LẦN ĐĂNG NHẬP
             try {
               await ApiService().mergeHistory(userId, currentSessionId);
             } catch (e) {
               debugPrint("Lỗi gộp lịch sử: $e");
             }
 
-            // Xóa lịch sử cũ trên UI và tải lại lịch sử mới nhất từ DB
             context.read<TranslationProvider>().clearHistory();
             try {
               await context.read<TranslationProvider>().fetchUserHistory(userId);
@@ -80,14 +76,12 @@ class _AuthScreenState extends State<AuthScreen> {
           }
 
           _showSnackBar("Welcome back, $username!");
-          // VỀ TRANG CHỦ MẶC ĐỊNH
           Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
           
         } else if (!success) {
           _showSnackBar("Login failed. Please check your credentials!", isError: true);
         }
       } else {
-        // --- 2. LOGIC ĐĂNG KÝ ---
         final success = await authProvider.register(username, password);
         if (success && mounted) {
           _showSnackBar("Welcome! Please login with your new account.");
@@ -100,7 +94,7 @@ class _AuthScreenState extends State<AuthScreen> {
         }
       }
     } catch (e) {
-      _showSnackBar("Lỗi kết nối: Server Flask chưa bật hoặc sai đường dẫn ($e)", isError: true);
+      _showSnackBar("Lỗi kết nối: Server chưa bật hoặc sai đường dẫn ($e)", isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -108,169 +102,120 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Row(
-        children: [
-          // LEFT PANE: Branding & Gradient
-          Expanded(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF29B6F6), Color(0xFFB3E5FC)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-              child: const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "N3Dictionary",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 54,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 50),
-                  Text(
-                    "More than just\na dictionary.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.black87,
-                      fontSize: 26,
-                      fontFamily: 'Courier', 
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 850;
 
-          // RIGHT PANE: Auth Form
-          Expanded(
-            child: Container(
-              color: Colors.white,
-              child: Center(
+    return Scaffold(
+      body: SingleChildScrollView( // Chống lỗi tràn khi hiện bàn phím
+        child: Container(
+          height: isMobile ? null : MediaQuery.of(context).size.height,
+          constraints: BoxConstraints(minHeight: MediaQuery.of(context).size.height),
+          child: Flex(
+            direction: isMobile ? Axis.vertical : Axis.horizontal,
+            children: [
+              // PHẦN LOGO / GIỚI THIỆU
+              Expanded(
+                flex: isMobile ? 0 : 1,
                 child: Container(
-                  width: 450,
-                  padding: const EdgeInsets.all(40),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.grey.shade400, width: 1),
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 80, horizontal: 40),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF29B6F6), Color(0xFFB3E5FC)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
                   ),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        _isLogin ? "Login to N3Dictionary" : "Sign up for N3Dictionary",
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w400,
-                        ),
+                      const Text(
+                        "N3Dictionary",
+                        style: TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(height: 35),
-                      
-                      const Text("User name", style: TextStyle(fontSize: 16)),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _usernameController,
-                        enabled: !_isLoading,
-                        decoration: InputDecoration(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                        ),
-                      ),
-                      const SizedBox(height: 25),
-
-                      const Text("Password", style: TextStyle(fontSize: 16)),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        enabled: !_isLoading,
-                        decoration: InputDecoration(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                              color: Colors.grey,
-                            ),
-                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 35),
-
-                      // Nút hành động
-                      SizedBox(
-                        width: double.infinity,
-                        height: 55,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF29B6F6), 
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                            elevation: 0,
-                          ),
-                          onPressed: _isLoading ? null : _handleSubmit,
-                          child: _isLoading 
-                            ? const SizedBox(
-                                height: 20, 
-                                width: 20, 
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                              )
-                            : Text(
-                                _isLogin ? "Sign in" : "Sign up",
-                                style: const TextStyle(
-                                  fontSize: 18, 
-                                  color: Colors.white, 
-                                  fontWeight: FontWeight.bold
-                                ),
-                              ),
-                        ),
-                      ),
-                      const SizedBox(height: 25),
-
-                      // Chuyển đổi form
-                      Center(
-                        child: Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Text(
-                              _isLogin ? "Don't have an account? " : "Already have an account? ",
-                              style: const TextStyle(color: Colors.black87, fontSize: 14),
-                            ),
-                            InkWell(
-                              onTap: _isLoading ? null : () {
-                                setState(() {
-                                  _isLogin = !_isLogin;
-                                  _usernameController.clear();
-                                  _passwordController.clear();
-                                });
-                              },
-                              child: Text(
-                                _isLogin ? "Sign up" : "Sign in",
-                                style: const TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 14,
-                                  decoration: TextDecoration.underline,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        "More than just\na dictionary.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.black87, fontSize: 22, fontFamily: 'Courier'),
                       ),
                     ],
                   ),
                 ),
               ),
-            ),
+              // PHẦN FORM ĐĂNG NHẬP
+              Expanded(
+                flex: isMobile ? 0 : 1,
+                child: Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 20),
+                  child: Center(
+                    child: ConstrainedBox( // Giới hạn độ rộng Form trên Desktop
+                      constraints: const BoxConstraints(maxWidth: 450),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _isLogin ? "Login" : "Sign up",
+                            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 40),
+                          const Text("Username", style: TextStyle(fontWeight: FontWeight.w500)),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: _usernameController,
+                            decoration: InputDecoration(
+                              prefixIcon: const Icon(Icons.person_outline),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Text("Password", style: TextStyle(fontWeight: FontWeight.w500)),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            decoration: InputDecoration(
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                              ),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                          ),
+                          const SizedBox(height: 40),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 55,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF29B6F6),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                              ),
+                              onPressed: _isLoading ? null : _handleSubmit,
+                              child: _isLoading 
+                                ? const CircularProgressIndicator(color: Colors.white)
+                                : Text(_isLogin ? "Sign in" : "Create Account", style: const TextStyle(color: Colors.white, fontSize: 18)),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Center(
+                            child: TextButton(
+                              onPressed: () => setState(() => _isLogin = !_isLogin),
+                              child: Text(_isLogin ? "Don't have an account? Sign up" : "Already have an account? Login"),
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

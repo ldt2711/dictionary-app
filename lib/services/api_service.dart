@@ -1,27 +1,31 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
 
 class ApiService {
-  // Lưu ý: 
-  // - Dùng 10.0.2.2 nếu bạn chạy Android Emulator.
-  // - Dùng 127.0.0.1 nếu chạy Web hoặc iOS Simulator.
-  final String baseUrl = "http://127.0.0.1:5000/api";
+  final String baseUrl = ApiConfig.baseUrl;
+
+  // Header chung để bypass Ngrok và định nghĩa kiểu dữ liệu
+  Map<String, String> get _headers => {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "69420", // Bypass trang cảnh báo Ngrok
+      };
 
   // 1. FOR GET REQUESTS
   // Asking the server for infomation
   Future<dynamic> getRequest(String endpoint) async {
     try {
       final url = Uri.parse("$baseUrl$endpoint");
-      final response = await http.get(url);
+      final response = await http.get(url, headers: _headers);
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        print("Server Error: ${response.statusCode}");
+        print("GET Error: ${response.statusCode} - ${response.body}");
         return null;
       }
     } catch (e) {
-      print("Connection failed: $e");
+      print("Connection failed (GET): $e");
       return null;
     }
   }
@@ -33,17 +37,22 @@ class ApiService {
       final url = Uri.parse("$baseUrl$endpoint");
       final response = await http.post(
         url,
-        headers: {"Content-Type": "application/json"},
+        headers: _headers, // Đã thêm header bypass ngrok vào đây
         body: jsonEncode(body),
       );
 
-      if (response.statusCode == 200) {
+      // Thường Flask trả về 200 hoặc 201 cho thành công
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return jsonDecode(response.body);
       } else {
+        // Trả về body lỗi từ server (ví dụ: "Username already exists")
         if (response.body.isNotEmpty) {
-          return jsonDecode(response.body);
+          try {
+            return jsonDecode(response.body);
+          } catch (_) {
+            return {"error": response.body};
+          }
         }
-        print("POST Error: ${response.statusCode}");
         return null;
       }
     } catch (e) {
@@ -51,10 +60,6 @@ class ApiService {
       return null;
     }
   }
-
-  // ============================================================
-  // CÁC HÀM AUTH & HISTORY
-  // ============================================================
 
   // 3. ĐĂNG NHẬP
   Future<Map<String, dynamic>?> login(String username, String password) async {
@@ -86,28 +91,25 @@ class ApiService {
 
   // 6. LẤY LỊCH SỬ
   Future<List<dynamic>> fetchHistory({int? userId, String? sessionId}) async {
-    String endpoint = "/history?";
-    if (userId != null) {
-      endpoint += "user_id=$userId";
-    } else if (sessionId != null) {
-      endpoint += "session_id=$sessionId";
-    }
+    // Sử dụng Uri.http hoặc cộng chuỗi an toàn hơn
+    Map<String, String> queryParams = {};
+    if (userId != null) queryParams['user_id'] = userId.toString();
+    if (sessionId != null) queryParams['session_id'] = sessionId;
+
+    String queryString = Uri(queryParameters: queryParams).query;
+    String endpoint = "/history${queryString.isNotEmpty ? '?$queryString' : ''}";
 
     final result = await getRequest(endpoint);
-    return result ?? [];
+    return result is List ? result : [];
   }
-
-  // ============================================================
-  // MỚI: HÀM LẤY DANH SÁCH NGÔN NGỮ ĐỘNG
-  // ============================================================
   
-  // 7. LẤY DANH SÁCH NGÔN NGỮ (Từ Google Translator qua Flask)
+  // 7. LẤY DANH SÁCH NGÔN NGỮ
   Future<Map<String, String>> fetchLanguages() async {
     final result = await getRequest("/languages");
+    print("DEBUG: Language Result = $result");
     if (result != null) {
-      // Ép kiểu dynamic sang Map<String, String> một cách an toàn
       return Map<String, String>.from(result);
     }
-    return {}; // Trả về Map rỗng nếu có lỗi để app không bị crash
+    return {}; 
   }
 }

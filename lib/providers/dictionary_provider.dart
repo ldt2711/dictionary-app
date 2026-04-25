@@ -1,3 +1,4 @@
+import 'package:dictionary_app/services/api_service.dart';
 import 'package:flutter/material.dart';
 import '../models/word_model.dart';
 import '../services/dictionary_service.dart';
@@ -16,16 +17,21 @@ class DictionaryProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage; 
   List<String> get searchHistory => _searchHistory;
 
+  DictionaryResult? _wordOfTheDay;
+  DictionaryResult? get wordOfTheDay => _wordOfTheDay;
+
   Future<void> fetchWordOfTheDay() async {
-    if (_result != null) return; 
-    
-    _isLoading = true;
-    notifyListeners();
-
-    _result = await _service.getWordData("serendipity"); 
-
-    _isLoading = false;
-    notifyListeners();
+    try {
+      // Gọi endpoint /api/words/random
+      final response = await ApiService().getRequest("/words/random");
+      if (response != null && response is List && response.isNotEmpty) {
+        // Lấy từ WOTD trả về
+        _wordOfTheDay = DictionaryResult.fromJson(response[0]);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint("Error fetching WOTD: $e");
+    }
   }
 
   Future<void> searchWord(String word) async {

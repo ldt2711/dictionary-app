@@ -1,8 +1,15 @@
+import 'package:dictionary_app/config/api_config.dart';
 import 'package:dictionary_app/models/word_model.dart';
+import 'package:http/http.dart' as http;
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../providers/dictionary_provider.dart';
+import '../widgets/error_state_widget.dart'; // Import widget mới
 
 class DictionaryScreen extends StatefulWidget {
   const DictionaryScreen({super.key});
@@ -13,8 +20,7 @@ class DictionaryScreen extends StatefulWidget {
 
 class _DictionaryScreenState extends State<DictionaryScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final AudioPlayer _audioPlayer = AudioPlayer(); // 2. Create the player instance
-  // Các biến quản lý Focus và Overlay cho popup lịch sử
+  final AudioPlayer _audioPlayer = AudioPlayer();
   final FocusNode _focusNode = FocusNode();
   final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
@@ -22,14 +28,10 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
   @override
   void initState() {
     super.initState();
-    // Lắng nghe sự kiện click/focus vào thanh search
     _focusNode.addListener(() {
       if (_focusNode.hasFocus) {
         _showSearchHistory();
       } else {
-        // --- GIẢI PHÁP SỬA LỖI: THÊM DELAY ---
-        // Thêm một khoảng trễ nhỏ (150ms) để sự kiện onTap kịp kích hoạt 
-        // trước khi Overlay bị gỡ bỏ khỏi cây Widget
         Future.delayed(const Duration(milliseconds: 150), () {
           if (mounted && !_focusNode.hasFocus) {
             _hideSearchHistory();
@@ -39,44 +41,65 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
     });
   }
 
- @override
+  @override
   void dispose() {
     _focusNode.dispose();
     _searchController.dispose();
-    _audioPlayer.dispose(); // 3. Dispose the player to free up resources
+    _audioPlayer.dispose();
     _hideSearchHistory();
     super.dispose();
   }
 
-  // 4. Create the play logic function
   Future<void> _playPronunciation(String url) async {
-    if (url.isNotEmpty) {
-      try {
+    if (url.isEmpty) return;
+
+    try {
+      await _audioPlayer.stop();
+
+      // Kiểm tra nguồn API
+      bool isOurApi = url.contains("ngrok-free.dev") || url.startsWith("/");
+
+      if (isOurApi) {
+        // Tạo URL chuẩn
+        Uri parsedUri = Uri.parse(url);
+        String text = parsedUri.queryParameters['text'] ?? '';
+        String lang = parsedUri.queryParameters['lang'] ?? 'en';
+        String safeUrl = "${ApiConfig.baseUrl}/tts?text=$text&lang=$lang";
+
+        // Tải audio bytes
+        final response = await http.get(Uri.parse(safeUrl), headers: {"ngrok-skip-browser-warning": "true"});
+
+        if (response.statusCode == 200) {
+          if (kIsWeb) {
+            // WEB: Dùng Base64
+            String base64Audio = base64Encode(response.bodyBytes);
+            await _audioPlayer.play(UrlSource("data:audio/mpeg;base64,$base64Audio"));
+          } else {
+            // WINDOWS / ANDROID: Lưu ra file tạm rồi phát
+            final tempDir = await getTemporaryDirectory();
+            final file = File('${tempDir.path}/temp_pronounce.mp3');
+            await file.writeAsBytes(response.bodyBytes);
+            await _audioPlayer.play(DeviceFileSource(file.path));
+          }
+        }
+      } else {
+        // URL từ điển bên ngoài (Google API...) - phát trực tiếp
         await _audioPlayer.play(UrlSource(url));
-      } catch (e) {
-        debugPrint("Error playing audio: $e");
       }
-    } else {
-      // Optional: Show a message if no audio exists
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Pronunciation audio not available"),
-          duration: Duration(seconds: 2),
-        ),
-      );
+    } catch (e) {
+      debugPrint("Error: $e");
     }
   }
 
   void _submitSearch() {
     final query = _searchController.text.trim();
     if (query.isNotEmpty) {
-      _focusNode.unfocus(); // Ẩn keyboard
-      _hideSearchHistory(); // Đóng popup lịch sử
+      _focusNode.unfocus(); 
+      _hideSearchHistory(); 
       context.read<DictionaryProvider>().searchWord(query);
     }
   }
 
-  // --- Logic hiển thị Overlay (Popup lịch sử) ---
   void _showSearchHistory() {
     final provider = context.read<DictionaryProvider>();
     if (provider.searchHistory.isEmpty) return;
@@ -99,7 +122,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
         child: CompositedTransformFollower(
           link: _layerLink,
           showWhenUnlinked: false,
-          offset: const Offset(0.0, 65.0), // Khoảng cách đẩy popup xuống dưới thanh search
+          offset: const Offset(0.0, 65.0), 
           child: Material(
             elevation: 4.0,
             borderRadius: BorderRadius.circular(15),
@@ -129,16 +152,11 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                           onPressed: () => provider.removeFromHistory(word),
                         ),
                         onTap: () {
-                          // --- CHỨC NĂNG TỰ ĐỘNG TÌM KIẾM ---
-                          // 1. Gán từ vào thanh search
                           _searchController.text = word;
-                          // 2. Đẩy con trỏ nhấp nháy về cuối chữ
                           _searchController.selection = TextSelection.fromPosition(
                             TextPosition(offset: word.length),
                           );
-                          // 3. Thực hiện tìm kiếm
                           _submitSearch();
-                          // 4. Buộc ẩn popup ngay lập tức sau khi chọn
                           _hideSearchHistory();
                         },
                       );
@@ -163,21 +181,17 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- 1. Search Bar ---
               _buildSearchBar(),
-
               const SizedBox(height: 30),
-
-              // --- 2. Result Area ---
               Expanded(
                 child: Consumer<DictionaryProvider>(
                   builder: (context, provider, child) {
                     if (provider.isLoading) {
                       return const Center(child: CircularProgressIndicator());
                     }
-                    // 1. Check for Error Message first
                     if (provider.errorMessage != null) {
-                      return _buildErrorState(provider.errorMessage!);
+                      // Sử dụng Widget dùng chung
+                      return ErrorStateWidget(message: provider.errorMessage!);
                     }
 
                     final data = provider.result;
@@ -196,9 +210,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
     );
   }
 
-  // Widget: The Rounded Search Bar
   Widget _buildSearchBar() {
-    // Bọc thanh search bằng CompositedTransformTarget để làm điểm neo cho Overlay
     return CompositedTransformTarget(
       link: _layerLink,
       child: Container(
@@ -222,7 +234,6 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                   hintStyle: TextStyle(color: Colors.grey),
                 ),
                 onChanged: (value) {
-                  // Mở lại popup nếu người dùng gõ text và có lịch sử
                   if (_focusNode.hasFocus && _overlayEntry == null) {
                     _showSearchHistory();
                   }
@@ -239,7 +250,6 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
     );
   }
 
-  // Widget: What to show when no word is searched
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -256,7 +266,6 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
     );
   }
 
-  // Widget: The Actual Content (Word, Definitions, Tips)
   Widget _buildDictionaryResult(DictionaryResult data) {
     return ListView(
       physics: const BouncingScrollPhysics(),
@@ -342,29 +351,6 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                 style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic),
               ),
             ),
-        ],
-      ),
-    );
-  }
-  
-  // --- ADD THIS NEW WIDGET METHOD AT THE BOTTOM OF THE CLASS ---
-  Widget _buildErrorState(String message) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.sentiment_dissatisfied, size: 80, color: Colors.orangeAccent),
-          const SizedBox(height: 15),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.black87),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            "Check your spelling or try a different word.",
-            style: TextStyle(color: Colors.grey),
-          ),
         ],
       ),
     );

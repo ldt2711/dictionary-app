@@ -148,4 +148,4 @@ android/app/src/main/AndroidManifest.xml
 
 ## 👨‍💻 Tác giả
 
-* Nhóm 
+* Nhóm 4 người 

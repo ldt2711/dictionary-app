@@ -1,6 +1,5 @@
 import 'dart:async'; 
 import 'package:flutter/material.dart';
-import 'dart:html' as html; 
 import 'package:provider/provider.dart'; 
 import 'hover_builder.dart'; 
 import '../providers/auth_provider.dart'; 
@@ -18,78 +17,65 @@ class Navbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Kiểm tra trạng thái đăng nhập từ AuthProvider
     final authProvider = context.watch<AuthProvider>();
     final isLoggedIn = authProvider.isLoggedIn;
     final username = authProvider.username ?? "";
+    
+    // Sử dụng LayoutBuilder để kiểm tra độ rộng màn hình thực tế
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        bool isMobile = constraints.maxWidth < 700;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.black12, width: 1)),
-      ),
-      child: Row(
-        children: [
-          // Logo - Bấm vào load lại trang web
-          GestureDetector(
-            onTap: () => html.window.location.reload(),
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: const Text(
-                "N3Dictionary",
-                style: TextStyle(
-                  color: Color(0xFFC85A48), 
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
+        return Container(
+          padding: EdgeInsets.symmetric(horizontal: isMobile ? 15 : 40, vertical: 12),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(bottom: BorderSide(color: Colors.black12, width: 1)),
           ),
-          
-          const Spacer(),
-          
-          // Menu Items (Logic xóa kết quả dịch khi chuyển tab)
-          _navItem(context, Icons.home_outlined, "Home", "home"),
-          _navItem(context, Icons.book_outlined, "Dictionary", "dictionary"),
-          _navItem(context, Icons.translate, "Translate", "translate"),
-          _navItem(context, Icons.waves_rounded, "Thesaurus", "thesaurus"),
-          
-          const Spacer(),
-
-          // Auth Section: Hiển thị Lời chào + Avatar hoặc nút Sign in
-          isLoggedIn 
-            ? Row(
-                children: [
-                  Text(
-                    "Hi, $username", 
-                    style: const TextStyle(
-                      fontSize: 15, 
-                      fontWeight: FontWeight.bold, 
-                      color: Color(0xFFC85A48)
-                    ),
-                  ),
-                  const SizedBox(width: 15),
-                  const ProfileAvatarMenu(), // Avatar UI
-                ],
-              )
-            : ElevatedButton(
-                onPressed: () {
-                  Navigator.pushNamed(context, '/login');
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF29B6F6),
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                ),
-                child: const Text(
-                  "Sign in", 
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)
+          child: Row(
+            children: [
+              // Logo
+              GestureDetector(
+                onTap: () => onTabSelected('home'),
+                child: Text(
+                  isMobile ? "N3" : "N3Dictionary", // Thu gọn tên logo nếu màn hình quá bé
+                  style: const TextStyle(color: Color(0xFFC85A48), fontSize: 22, fontWeight: FontWeight.bold),
                 ),
               ),
-        ],
-      ),
+              
+              const Spacer(),
+              
+              // Menu Items: Trên Mobile chỉ hiện Icon, trên Desktop hiện cả Icon + Text
+              _navItem(context, Icons.home_outlined, isMobile ? "" : "Home", "home"),
+              _navItem(context, Icons.book_outlined, isMobile ? "" : "Dictionary", "dictionary"),
+              _navItem(context, Icons.translate, isMobile ? "" : "Translate", "translate"),
+              _navItem(context, Icons.waves_rounded, isMobile ? "" : "Word Relation", "wordrelation"),
+              
+              const Spacer(),
+
+              // Auth Section
+              isLoggedIn 
+                ? Row(
+                    children: [
+                      if (!isMobile) // Chỉ hiện "Hi, user" trên màn hình rộng
+                        Text("Hi, $username", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFC85A48))),
+                      const SizedBox(width: 10),
+                      const ProfileAvatarMenu(),
+                    ],
+                  )
+                : ElevatedButton(
+                    onPressed: () => Navigator.pushNamed(context, '/login'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF29B6F6),
+                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    ),
+                    child: const Text("Sign in", style: TextStyle(color: Colors.white)),
+                  ),
+            ],
+          ),
+        );
+      }
     );
   }
 
