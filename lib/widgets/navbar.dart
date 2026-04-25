@@ -1,6 +1,5 @@
 import 'dart:async'; 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart'; 
 import 'hover_builder.dart'; 
 import '../providers/auth_provider.dart'; 
@@ -50,7 +49,7 @@ class Navbar extends StatelessWidget {
               _navItem(context, Icons.home_outlined, isMobile ? "" : "Home", "home"),
               _navItem(context, Icons.book_outlined, isMobile ? "" : "Dictionary", "dictionary"),
               _navItem(context, Icons.translate, isMobile ? "" : "Translate", "translate"),
-              _navItem(context, Icons.waves_rounded, isMobile ? "" : "Thesaurus", "thesaurus"),
+              _navItem(context, Icons.waves_rounded, isMobile ? "" : "Word Relation", "wordrelation"),
               
               const Spacer(),
 

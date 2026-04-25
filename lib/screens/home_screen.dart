@@ -5,7 +5,7 @@ import '../widgets/dictionary_display.dart';
 import '../providers/dictionary_provider.dart';
 import 'translate_screen.dart'; 
 import 'dictionary_screen.dart'; 
-import 'thesaurus_screen.dart'; // <-- IMPORT ADDED HERE
+import 'word_relation_screen.dart'; // <-- IMPORT ADDED HERE
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -64,8 +64,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ? const DictionaryScreen()
               : _currentNavTab == 'translate'
                 ? const TranslateScreen()
-              : _currentNavTab == 'thesaurus' // <-- ROUTING LOGIC ADDED HERE
-                ? const ThesaurusScreen()
+              : _currentNavTab == 'wordrelation' // <-- ROUTING LOGIC ADDED HERE
+                ? const WordRelationScreen()
                 : Center(child: Text("$_currentNavTab page coming soon!")),
           ),
         ],

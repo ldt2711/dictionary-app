@@ -18,8 +18,12 @@ class _TranslateScreenState extends State<TranslateScreen> {
 
   // 2. Initialize the AudioPlayer here
   final AudioPlayer _audioPlayer = AudioPlayer();
-  
-  // Replace this with your actual local IP or 'http://localhost:5000' for web
+  @override
+  void initState() {
+    super.initState();
+    // Một số trình duyệt cần "đánh thức" audio context
+    _audioPlayer.setSourceUrl("about:blank"); 
+  } 
 
   @override
   void dispose() {
@@ -32,6 +36,7 @@ class _TranslateScreenState extends State<TranslateScreen> {
   void _playTts(String path) async {
     if (path.isNotEmpty) {
       try {
+        await _audioPlayer.stop();
         // Prepend the base URL so Flutter knows to hit your Flask server
         await _audioPlayer.play(UrlSource(path));
       } catch (e) {

@@ -9,7 +9,7 @@ import 'screens/auth_screen.dart';
 // --- Providers ---
 import 'providers/translation_provider.dart';
 import 'providers/dictionary_provider.dart';
-import 'providers/thesaurus_provider.dart';
+import 'providers/word_relation_provider.dart';
 import 'providers/auth_provider.dart'; 
 
 void main() async {
@@ -34,7 +34,7 @@ void main() async {
         ChangeNotifierProvider.value(value: translationProvider),
         
         ChangeNotifierProvider(create: (_) => DictionaryProvider()),
-        ChangeNotifierProvider(create: (_) => ThesaurusProvider()),
+        ChangeNotifierProvider(create: (_) => WordRelationProvider()),
       ],
       child: const MyApp(),
     ),
